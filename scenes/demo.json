@@ -1,0 +1,95 @@
+{
+  "version": 1,
+  "id": "demo",
+  "title": "Semana del lanzamiento",
+  "updatedAt": "2026-09-24T02:30:00Z",
+  "summary": "Lo que llevamos del chat, en piezas que se leen en el iPhone.",
+  "change": "Escena de ejemplo",
+  "blocks": [
+    {
+      "id": "kpis",
+      "type": "kpi",
+      "title": "Hoy",
+      "data": {
+        "items": [
+          { "label": "Pedidos", "value": 128, "delta": "+12%" },
+          { "label": "Ticket", "value": "$42", "delta": "-3%" },
+          { "label": "Listos", "value": "6/9" },
+          { "label": "En espera", "value": 3 }
+        ]
+      }
+    },
+    {
+      "id": "ventas",
+      "type": "bar",
+      "title": "Ventas por día",
+      "data": {
+        "series": [
+          { "label": "Lun", "value": 40 },
+          { "label": "Mar", "value": 55 },
+          { "label": "Mié", "value": 48 },
+          { "label": "Jue", "value": 72 },
+          { "label": "Vie", "value": 90 }
+        ]
+      }
+    },
+    {
+      "id": "mix",
+      "type": "donut",
+      "title": "De dónde viene",
+      "data": {
+        "parts": [
+          { "label": "Shop", "value": 52 },
+          { "label": "Orgánico", "value": 28 },
+          { "label": "Ads", "value": 20 }
+        ]
+      }
+    },
+    {
+      "id": "tabla",
+      "type": "table",
+      "title": "Piezas",
+      "data": {
+        "columns": ["Pieza", "Estado", "Nota"],
+        "rows": [
+          ["Still", "Listo", "Dreamwich"],
+          ["Kling", "En cola", "Mudo 10s"],
+          ["Voz", "Espera", "Claudia V2"]
+        ]
+      }
+    },
+    {
+      "id": "plan",
+      "type": "timeline",
+      "title": "Orden del día",
+      "data": {
+        "items": [
+          { "when": "9:00", "title": "Revisar still", "body": "Parar hasta el GO" },
+          { "when": "11:00", "title": "Kling", "body": "Un solo render activo" },
+          { "when": "16:00", "title": "Entrega", "body": "Un MP4" }
+        ]
+      }
+    },
+    {
+      "id": "tareas",
+      "type": "checklist",
+      "title": "Para cerrar",
+      "data": {
+        "items": [
+          { "label": "Aprobar el still", "done": true },
+          { "label": "Confirmar el guion", "done": false },
+          { "label": "Abrir este canvas en el iPhone", "done": false }
+        ]
+      }
+    },
+    {
+      "id": "nota",
+      "type": "callout",
+      "title": "Cómo usarlo",
+      "data": {
+        "tone": "good",
+        "text": "En el chat dile a Grok: ponlo en el canvas. El mismo enlace se actualiza; no hace falta descargar un archivo."
+      }
+    }
+  ]
+}
