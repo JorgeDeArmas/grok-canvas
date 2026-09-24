@@ -106,6 +106,26 @@
   .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
   .cols h3 { margin: 0 0 6px; font-size: 13px; }
   .cols ul { margin: 0; padding-left: 18px; font-size: 14px; }
+  textarea.script {
+    width: 100%; min-height: 160px; resize: vertical; border-radius: 12px;
+    border: 1px solid var(--line); background: var(--bg); color: var(--text);
+    font: 16px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; padding: 12px;
+  }
+  .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+  button.act, a.act {
+    min-height: 44px; padding: 0 14px; border-radius: 12px; border: 0;
+    background: var(--accent); color: #fff; font: 600 15px/44px -apple-system, sans-serif;
+    text-decoration: none; display: inline-flex; align-items: center;
+  }
+  button.ghost, a.ghost { background: var(--chip); color: var(--text); }
+  video, img.still, audio { width: 100%; border-radius: 12px; background: #000; display: block; }
+  img.still { height: auto; background: var(--bg); }
+  .pipe { display: flex; gap: 6px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .step { min-width: 72px; text-align: center; font-size: 12px; color: var(--muted); }
+  .dot { width: 14px; height: 14px; border-radius: 99px; margin: 0 auto 4px; background: var(--chip); }
+  .step.done .dot { background: var(--good); }
+  .step.now .dot { background: var(--warn); }
+  .toast { font-size: 13px; color: var(--muted); min-height: 18px; margin-top: 6px; }
 </style>
 </head>
 <body>
@@ -186,6 +206,47 @@ function donut(parts) {
   return `<svg class="chart" viewBox="0 0 200 180" role="img">${slices}<circle cx="${cx}" cy="${cy}" r="40" fill="var(--card)"></circle></svg><div class="legend">${legend}</div>`;
 }
 
+function secret() {
+  const h = new URLSearchParams((location.hash || "").replace(/^#/, ""));
+  return { b: h.get("b") || "", k: h.get("k") || "", f: h.get("f") || "" };
+}
+
+function b64urlToBytes(text) {
+  const pad = "=".repeat((4 - (text.length % 4)) % 4);
+  const bin = atob(text.replace(/-/g, "+").replace(/_/g, "/") + pad);
+  return Uint8Array.from(bin, (c) => c.charCodeAt(0));
+}
+
+function b64ToBytes(text) {
+  const bin = atob(text);
+  return Uint8Array.from(bin, (c) => c.charCodeAt(0));
+}
+
+async function decryptScene(blob, keyText) {
+  const key = await crypto.subtle.importKey("raw", b64urlToBytes(keyText), "AES-GCM", false, ["decrypt"]);
+  const plain = await crypto.subtle.decrypt(
+    { name: "AES-GCM", iv: b64ToBytes(blob.iv) },
+    key,
+    b64ToBytes(blob.ct)
+  );
+  return JSON.parse(new TextDecoder().decode(plain));
+}
+
+async function sendFeedback(item) {
+  const box = secret().f;
+  if (!box) throw new Error("sin buzón");
+  const res = await fetch("https://webhook.site/" + box, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ...item, at: new Date().toISOString() })
+  });
+  if (!res.ok) throw new Error(String(res.status));
+}
+
+function mediaActions(src, name) {
+  return `<div class="actions"><a class="act" href="${esc(src)}" download="${esc(name)}" target="_blank" rel="noopener">Descargar</a></div>`;
+}
+
 function block(b) {
   const t = b.type;
   const title = b.title ? `<h2>${esc(b.title)}</h2>` : "";
@@ -244,6 +305,25 @@ function block(b) {
     return `<article>${title}<div class="cards">${items}</div></article>`;
   }
   if (t === "prose") return `<article>${title}<p class="prose">${esc(d.text || "")}</p></article>`;
+  if (t === "script") {
+    return `<article data-script="${esc(b.id)}">${title}<textarea class="script">${esc(d.text || "")}</textarea><div class="actions"><button class="act" type="button" data-copy>Copiar</button><button class="ghost act" type="button" data-send>Enviar corrección a Grok</button></div><p class="toast" data-toast></p></article>`;
+  }
+  if (t === "video") {
+    const src = d.src || "";
+    return `<article data-approve="${esc(b.id)}">${title}<video controls playsinline preload="metadata" poster="${esc(d.poster || "")}" src="${esc(src)}"></video>${mediaActions(src, d.filename || "video.mp4")}<div class="actions"><button class="act" type="button" data-choice="go">GO</button><button class="ghost act" type="button" data-choice="changes">Pedir cambios</button></div><p class="toast" data-toast></p></article>`;
+  }
+  if (t === "audio") {
+    const src = d.src || "";
+    return `<article>${title}<audio controls preload="metadata" src="${esc(src)}"></audio>${mediaActions(src, d.filename || "voz.mp3")}</article>`;
+  }
+  if (t === "image") {
+    const src = d.src || "";
+    return `<article data-approve="${esc(b.id)}">${title}<img class="still" alt="${esc(d.alt || b.title || "")}" src="${esc(src)}">${mediaActions(src, d.filename || "still.jpg")}<div class="actions"><button class="act" type="button" data-choice="go">GO</button><button class="ghost act" type="button" data-choice="changes">Pedir cambios</button></div><p class="toast" data-toast></p></article>`;
+  }
+  if (t === "pipeline") {
+    const steps = (d.steps || []).map((s) => `<div class="step ${esc(s.state || "")}"><div class="dot"></div>${esc(s.label)}</div>`).join("");
+    return `<article>${title}<div class="pipe">${steps}</div></article>`;
+  }
   return `<article>${title}<p class="prose">${esc(JSON.stringify(d))}</p></article>`;
 }
 
@@ -259,6 +339,9 @@ function render(scene) {
   if (scene.change) { change.hidden = false; change.textContent = scene.change; }
   else change.hidden = true;
   const main = $("main");
+  const active = document.activeElement;
+  if (active && main.contains(active) && active.tagName === "TEXTAREA") return;
+  if ([...main.querySelectorAll("textarea")].some((el) => el.dataset.dirty === "1")) return;
   main.innerHTML = "";
   if (scene.summary) {
     const p = document.createElement("p");
@@ -267,6 +350,7 @@ function render(scene) {
     main.appendChild(p);
   }
   main.insertAdjacentHTML("beforeend", (scene.blocks || []).map(block).join(""));
+  main.insertAdjacentHTML("beforeend", `<article><h2>Nota para Grok</h2><textarea class="script" data-note placeholder="Un cambio, una duda, un GO…"></textarea><div class="actions"><button class="act" type="button" data-note-send>Enviar a Grok</button></div><p class="toast" data-toast></p></article>`);
   main.querySelectorAll("button.check").forEach((btn) => {
     btn.addEventListener("click", () => {
       const on = btn.classList.toggle("on");
@@ -274,21 +358,73 @@ function render(scene) {
       btn.setAttribute("aria-pressed", on ? "true" : "false");
     });
   });
+  main.querySelectorAll("article[data-script]").forEach((article) => {
+    const area = article.querySelector("textarea");
+    area.addEventListener("input", () => { area.dataset.dirty = "1"; });
+    article.querySelector("[data-copy]").addEventListener("click", async () => {
+      await navigator.clipboard.writeText(area.value);
+      article.querySelector("[data-toast]").textContent = "Copiado";
+    });
+    article.querySelector("[data-send]").addEventListener("click", async () => {
+      const toast = article.querySelector("[data-toast]");
+      try {
+        await sendFeedback({ kind: "script", blockId: article.dataset.script, text: area.value });
+        area.dataset.dirty = "";
+        toast.textContent = "Enviado. Escríbele a Grok «lee el canvas» y aplica la corrección.";
+      } catch (err) {
+        toast.textContent = "No se pudo enviar. Revisa el enlace.";
+      }
+    });
+  });
+  main.querySelectorAll("article[data-approve]").forEach((article) => {
+    article.querySelectorAll("[data-choice]").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const toast = article.querySelector("[data-toast]");
+        try {
+          await sendFeedback({ kind: "approve", blockId: article.dataset.approve, choice: btn.dataset.choice });
+          toast.textContent = btn.dataset.choice === "go" ? "GO enviado a Grok." : "Cambios pedidos. Grok los lee cuando le escribas.";
+        } catch (err) {
+          toast.textContent = "No se pudo enviar.";
+        }
+      });
+    });
+  });
+  const note = main.querySelector("[data-note]");
+  note.addEventListener("input", () => { note.dataset.dirty = "1"; });
+  main.querySelector("[data-note-send]").addEventListener("click", async () => {
+    const toast = note.parentElement.querySelector("[data-toast]");
+    try {
+      await sendFeedback({ kind: "note", text: note.value });
+      note.value = "";
+      note.dataset.dirty = "";
+      toast.textContent = "Nota enviada a Grok.";
+    } catch (err) {
+      toast.textContent = "No se pudo enviar.";
+    }
+  });
 }
 
 async function load() {
-  const id = canvasId().replace(/[^a-zA-Z0-9_-]/g, "");
-  const sameHost = location.hostname === "raw.githack.com" || location.hostname.endsWith("github.io");
+  const sec = secret();
+  if (!sec.b || !sec.k) {
+    $("title").textContent = "Enlace incompleto";
+    $("meta").textContent = "Hace falta la llave del enlace";
+    $("main").innerHTML = `<p class="status">Este enlace no abre el canvas. Pídele a Grok el enlace completo, el que termina en #b=…</p>`;
+    return;
+  }
+  const id = sec.b.replace(/[^a-zA-Z0-9_-]/g, "");
+  const sameHost = location.hostname === "raw.githack.com" || location.hostname.endsWith("github.io") || location.hostname === "localhost" || location.hostname === "127.0.0.1";
   const url = sameHost
     ? `scenes/${id}.json?t=${Date.now()}`
     : `https://raw.githack.com/JorgeDeArmas/grok-canvas/main/scenes/${id}.json?t=${Date.now()}`;
   try {
     const res = await fetch(url, { cache: "no-store" });
     if (!res.ok) throw new Error(String(res.status));
-    render(await res.json());
+    render(await decryptScene(await res.json(), sec.k));
   } catch (err) {
-    $("meta").textContent = "No se pudo cargar esta escena";
-    $("main").innerHTML = `<p class="status">No encuentro <b>${esc(id)}</b>. Pídele a Grok que lo publique de nuevo.</p>`;
+    if (document.activeElement && document.activeElement.tagName === "TEXTAREA") return;
+    $("meta").textContent = "No se pudo abrir";
+    $("main").innerHTML = `<p class="status">La llave no abre esta escena o el archivo aún no está publicado.</p>`;
   }
 }
 
