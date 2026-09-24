@@ -103,6 +103,8 @@
   summary { min-height: 44px; display: flex; align-items: center; font-weight: 600; }
   .prose { font-size: 15px; }
   .status { color: var(--muted); font-size: 14px; padding: 24px 0; }
+  .hint { color: var(--muted); font-size: 13px; margin: 0 0 8px; }
+  .hint.bad { color: var(--bad); }
   .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
   .cols h3 { margin: 0 0 6px; font-size: 13px; }
   .cols ul { margin: 0; padding-left: 18px; font-size: 14px; }
@@ -232,6 +234,67 @@ async function decryptScene(blob, keyText) {
   return JSON.parse(new TextDecoder().decode(plain));
 }
 
+const decryptedMedia = new Map();
+let renderedScene = "";
+
+function guessImageMime(bytes) {
+  if (bytes.length >= 8 && bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47) return "image/png";
+  if (bytes.length >= 6 && bytes[0] === 0x47 && bytes[1] === 0x49 && bytes[2] === 0x46) return "image/gif";
+  if (bytes.length >= 12 && bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46 && bytes[8] === 0x57 && bytes[9] === 0x45 && bytes[10] === 0x42 && bytes[11] === 0x50) return "image/webp";
+  return "image/jpeg";
+}
+
+function encErrorText(err) {
+  const code = String((err && err.message) || "");
+  if (code === "missing") return "Falta el archivo cifrado.";
+  if (code === "fetch" || code === "http") return "No se pudo descargar el archivo cifrado.";
+  return "No se pudo descifrar el archivo.";
+}
+
+async function decryptMediaNow(url, mime) {
+  const keyText = secret().k;
+  if (!keyText) throw new Error("decrypt");
+  let res;
+  try {
+    res = await fetch(url);
+  } catch (e) {
+    throw new Error("fetch");
+  }
+  if (!res.ok) throw new Error("http");
+  const buf = new Uint8Array(await res.arrayBuffer());
+  if (buf.byteLength < 28) throw new Error("decrypt");
+  const iv = new Uint8Array(buf.subarray(0, 12));
+  const ct = new Uint8Array(buf.subarray(12));
+  let plain;
+  try {
+    const key = await crypto.subtle.importKey("raw", b64urlToBytes(keyText), "AES-GCM", false, ["decrypt"]);
+    plain = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, ct);
+  } catch (e) {
+    throw new Error("decrypt");
+  }
+  const type = mime || guessImageMime(new Uint8Array(plain));
+  return URL.createObjectURL(new Blob([plain], { type }));
+}
+
+async function decryptMediaFile(url, mime) {
+  const hit = decryptedMedia.get(url + "\0" + (mime || ""));
+  if (hit) return hit;
+  const cacheKey = url + "\0" + (mime || "");
+  let task;
+  task = (async () => {
+    try {
+      const objectUrl = await decryptMediaNow(url, mime);
+      decryptedMedia.set(cacheKey, objectUrl);
+      return objectUrl;
+    } catch (err) {
+      if (decryptedMedia.get(cacheKey) === task) decryptedMedia.delete(cacheKey);
+      throw err;
+    }
+  })();
+  decryptedMedia.set(cacheKey, task);
+  return task;
+}
+
 async function sendFeedback(item) {
   const box = secret().f;
   if (!box) throw new Error("sin buzón");
@@ -245,6 +308,109 @@ async function sendFeedback(item) {
 
 function mediaActions(src, name) {
   return `<div class="actions"><a class="act" href="${esc(src)}" download="${esc(name)}" target="_blank" rel="noopener">Descargar</a></div>`;
+}
+
+function encMedia(kind, d, alt) {
+  const name = d.filename || (kind === "video" ? "video.mp4" : kind === "audio" ? "voz.mp3" : "still.jpg");
+  return `<div class="enc-media" aria-busy="true" data-src="${esc(d.src || "")}" data-mime="${esc(d.mime || "")}" data-name="${esc(name)}" data-kind="${kind}" data-poster="${esc(d.poster || "")}" data-poster-enc="${d.posterEnc === true ? "1" : ""}" data-alt="${esc(alt || "")}"><p class="hint" data-enc-status role="status">Descifrando…</p></div><div class="actions"><a class="act" data-enc-dl hidden download="${esc(name)}" target="_blank" rel="noopener">Descargar</a></div>`;
+}
+
+function showEncError(el, message) {
+  if (!el.isConnected) return;
+  el.dataset.pending = "";
+  el.setAttribute("aria-busy", "false");
+  let status = el.querySelector("[data-enc-status]");
+  if (!status) {
+    status = document.createElement("p");
+    status.setAttribute("data-enc-status", "");
+    status.setAttribute("role", "status");
+    el.prepend(status);
+  }
+  status.className = "hint bad";
+  status.dataset.encError = "1";
+  status.textContent = message;
+}
+
+function mountEncMedia(el, objectUrl, posterUrl) {
+  if (!el.isConnected || el.dataset.ready === "1") return;
+  el.dataset.ready = "1";
+  el.setAttribute("aria-busy", "false");
+  const kind = el.dataset.kind;
+  const status = el.querySelector("[data-enc-status]");
+  if (status) status.remove();
+  let media;
+  if (kind === "video") {
+    media = document.createElement("video");
+    media.controls = true;
+    media.playsInline = true;
+    media.setAttribute("playsinline", "");
+    media.setAttribute("webkit-playsinline", "");
+    media.preload = "auto";
+    if (posterUrl) media.poster = posterUrl;
+  } else if (kind === "audio") {
+    media = document.createElement("audio");
+    media.controls = true;
+    media.preload = "auto";
+  } else {
+    media = document.createElement("img");
+    media.className = "still";
+    media.alt = el.dataset.alt || "";
+  }
+  el.appendChild(media);
+  media.src = objectUrl;
+  if (kind !== "image") media.load();
+  const dl = el.parentElement && el.parentElement.querySelector("[data-enc-dl]");
+  if (dl) {
+    dl.href = objectUrl;
+    if (el.dataset.name) dl.download = el.dataset.name;
+    dl.hidden = false;
+  }
+}
+
+async function hydrateEncMedia(el) {
+  if (!el.isConnected || el.dataset.ready === "1" || el.dataset.pending === "1") return;
+  const src = el.dataset.src || "";
+  if (!src) {
+    showEncError(el, encErrorText(new Error("missing")));
+    return;
+  }
+  el.dataset.pending = "1";
+  const mime = el.dataset.mime || "";
+  const poster = el.dataset.poster || "";
+  try {
+    const mediaPromise = decryptMediaFile(src, mime);
+    let posterPromise = Promise.resolve("");
+    if (el.dataset.kind === "video" && poster) {
+      posterPromise = el.dataset.posterEnc === "1"
+        ? decryptMediaFile(poster, "").catch(() => "")
+        : Promise.resolve(poster);
+    }
+    const [objectUrl, posterUrl] = await Promise.all([mediaPromise, posterPromise]);
+    mountEncMedia(el, objectUrl, posterUrl);
+  } catch (err) {
+    showEncError(el, encErrorText(err));
+  }
+}
+
+function hydrateEncryptedMedia(root) {
+  root.querySelectorAll(".enc-media").forEach((el) => { void hydrateEncMedia(el); });
+}
+
+function retryFailedMedia(root) {
+  root.querySelectorAll(".enc-media").forEach((el) => {
+    if (el.dataset.ready === "1" || el.dataset.pending === "1") return;
+    const failed = el.querySelector("[data-enc-error]");
+    if (!failed) return;
+    failed.remove();
+    const hint = document.createElement("p");
+    hint.className = "hint";
+    hint.setAttribute("data-enc-status", "");
+    hint.setAttribute("role", "status");
+    hint.textContent = "Descifrando…";
+    el.appendChild(hint);
+    el.setAttribute("aria-busy", "true");
+    void hydrateEncMedia(el);
+  });
 }
 
 function block(b) {
@@ -268,7 +434,10 @@ function block(b) {
     return `<article>${title}<div class="scroll"><table><thead><tr>${head}</tr></thead><tbody>${rows}</tbody></table></div></article>`;
   }
   if (t === "cards") {
-    const cards = (d.items || []).map((it) => {
+    const items = d.items == null && (d.title || d.body)
+      ? [{ title: d.title, body: d.body, href: d.href }]
+      : (d.items || []);
+    const cards = items.map((it) => {
       const inner = `<strong>${esc(it.title)}</strong><p>${esc(it.body || "")}</p>`;
       return it.href ? `<a class="card" href="${esc(it.href)}">${inner}</a>` : `<div class="card">${inner}</div>`;
     }).join("");
@@ -309,14 +478,21 @@ function block(b) {
     return `<article data-script="${esc(b.id)}">${title}<textarea class="script">${esc(d.text || "")}</textarea><div class="actions"><button class="act" type="button" data-copy>Copiar</button><button class="ghost act" type="button" data-send>Enviar corrección a Grok</button></div><p class="toast" data-toast></p></article>`;
   }
   if (t === "video") {
+    if (d.enc === true) {
+      return `<article data-approve="${esc(b.id)}">${title}${encMedia("video", d, "")}<div class="actions"><button class="act" type="button" data-choice="go">GO</button><button class="ghost act" type="button" data-choice="changes">Pedir cambios</button></div><p class="toast" data-toast></p></article>`;
+    }
     const src = d.src || "";
     return `<article data-approve="${esc(b.id)}">${title}<video controls playsinline preload="metadata" poster="${esc(d.poster || "")}" src="${esc(src)}"></video>${mediaActions(src, d.filename || "video.mp4")}<div class="actions"><button class="act" type="button" data-choice="go">GO</button><button class="ghost act" type="button" data-choice="changes">Pedir cambios</button></div><p class="toast" data-toast></p></article>`;
   }
   if (t === "audio") {
+    if (d.enc === true) return `<article>${title}${encMedia("audio", d, "")}</article>`;
     const src = d.src || "";
     return `<article>${title}<audio controls preload="metadata" src="${esc(src)}"></audio>${mediaActions(src, d.filename || "voz.mp3")}</article>`;
   }
   if (t === "image") {
+    if (d.enc === true) {
+      return `<article data-approve="${esc(b.id)}">${title}${encMedia("image", d, d.alt || b.title || "")}<div class="actions"><button class="act" type="button" data-choice="go">GO</button><button class="ghost act" type="button" data-choice="changes">Pedir cambios</button></div><p class="toast" data-toast></p></article>`;
+    }
     const src = d.src || "";
     return `<article data-approve="${esc(b.id)}">${title}<img class="still" alt="${esc(d.alt || b.title || "")}" src="${esc(src)}">${mediaActions(src, d.filename || "still.jpg")}<div class="actions"><button class="act" type="button" data-choice="go">GO</button><button class="ghost act" type="button" data-choice="changes">Pedir cambios</button></div><p class="toast" data-toast></p></article>`;
   }
@@ -342,6 +518,12 @@ function render(scene) {
   const active = document.activeElement;
   if (active && main.contains(active) && active.tagName === "TEXTAREA") return;
   if ([...main.querySelectorAll("textarea")].some((el) => el.dataset.dirty === "1")) return;
+  const signature = JSON.stringify(scene);
+  if (signature === renderedScene && main.childElementCount) {
+    retryFailedMedia(main);
+    return;
+  }
+  renderedScene = signature;
   main.innerHTML = "";
   if (scene.summary) {
     const p = document.createElement("p");
@@ -402,11 +584,13 @@ function render(scene) {
       toast.textContent = "No se pudo enviar.";
     }
   });
+  hydrateEncryptedMedia(main);
 }
 
 async function load() {
   const sec = secret();
   if (!sec.b || !sec.k) {
+    renderedScene = "";
     $("title").textContent = "Enlace incompleto";
     $("meta").textContent = "Hace falta la llave del enlace";
     $("main").innerHTML = `<p class="status">Este enlace no abre el canvas. Pídele a Grok el enlace completo, el que termina en #b=…</p>`;
@@ -423,6 +607,7 @@ async function load() {
     render(await decryptScene(await res.json(), sec.k));
   } catch (err) {
     if (document.activeElement && document.activeElement.tagName === "TEXTAREA") return;
+    renderedScene = "";
     $("meta").textContent = "No se pudo abrir";
     $("main").innerHTML = `<p class="status">La llave no abre esta escena o el archivo aún no está publicado.</p>`;
   }
