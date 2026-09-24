@@ -3,6 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' blob: https://cdn.jsdelivr.net https://raw.githubusercontent.com https://raw.githack.com https://rawcdn.githack.com; media-src 'self' blob: https://cdn.jsdelivr.net https://raw.githubusercontent.com https://raw.githack.com https://rawcdn.githack.com; connect-src 'self' https://cdn.jsdelivr.net https://raw.githubusercontent.com https://raw.githack.com https://rawcdn.githack.com https://webhook.site; base-uri 'none'; form-action 'none'; object-src 'none'; frame-ancestors 'none'">
 <meta name="theme-color" content="#f2f2f7">
 <title>Canvas</title>
 <style>
@@ -154,6 +156,83 @@ function esc(s) {
   }[c]));
 }
 
+const MEDIA_HOSTS = new Set([
+  "cdn.jsdelivr.net",
+  "raw.githubusercontent.com",
+  "raw.githack.com",
+  "rawcdn.githack.com"
+]);
+const PIPE_STATES = new Set(["done", "now", "wait"]);
+const CALLOUT_TONES = new Set(["info", "warn", "good", "bad"]);
+const SAFE_MIME = new Set([
+  "image/jpeg", "image/png", "image/gif", "image/webp",
+  "video/mp4", "video/webm", "video/quicktime",
+  "audio/mpeg", "audio/mp4", "audio/wav", "audio/wave", "audio/x-wav",
+  "audio/ogg", "audio/webm", "audio/aac"
+]);
+const FEEDBACK_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const FEEDBACK_TEXT_MAX = 50000;
+
+function allowToken(raw, allowed) {
+  const value = String(raw ?? "").trim();
+  return allowed.has(value) ? value : "";
+}
+
+function parseHttpUrl(raw) {
+  const text = String(raw ?? "").trim();
+  if (!text || text.length > 4096) return null;
+  if (/[\u0000-\u001F\u007F\u2028\u2029\\]/.test(text)) return null;
+  if (text.startsWith("//")) return null;
+  let url;
+  try {
+    url = new URL(text, location.href);
+  } catch (err) {
+    return null;
+  }
+  if (url.username || url.password) return null;
+  return { text, url };
+}
+
+function isRelativePath(text) {
+  return !/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(text);
+}
+
+function safeHttpsUrl(raw) {
+  const parsed = parseHttpUrl(raw);
+  if (!parsed) return "";
+  const { text, url } = parsed;
+  if (isRelativePath(text)) {
+    if (url.origin !== location.origin) return "";
+    if (url.protocol !== "http:" && url.protocol !== "https:") return "";
+    return url.href;
+  }
+  if (url.protocol !== "https:") return "";
+  return url.href;
+}
+
+function safeMediaUrl(raw) {
+  const parsed = parseHttpUrl(raw);
+  if (!parsed) return "";
+  const { url } = parsed;
+  if (url.protocol !== "https:") return "";
+  if (url.port) return "";
+  const host = url.hostname.toLowerCase().replace(/\.$/, "");
+  if (!MEDIA_HOSTS.has(host)) return "";
+  return url.href;
+}
+
+function safeMime(raw, fallback) {
+  let mime = String(raw ?? "").trim().toLowerCase().split(";")[0].trim();
+  if (mime === "audio/mp3") mime = "audio/mpeg";
+  if (SAFE_MIME.has(mime)) return mime;
+  if (fallback && SAFE_MIME.has(fallback)) return fallback;
+  return "application/octet-stream";
+}
+
+function deniedHint() {
+  return `<p class="hint">Enlace no permitido.</p>`;
+}
+
 function money(n) {
   if (typeof n === "number") return n.toLocaleString("es-ES");
   return esc(n);
@@ -247,16 +326,19 @@ function guessImageMime(bytes) {
 function encErrorText(err) {
   const code = String((err && err.message) || "");
   if (code === "missing") return "Falta el archivo cifrado.";
+  if (code === "blocked") return "Enlace no permitido.";
   if (code === "fetch" || code === "http") return "No se pudo descargar el archivo cifrado.";
   return "No se pudo descifrar el archivo.";
 }
 
 async function decryptMediaNow(url, mime) {
+  const safe = safeMediaUrl(url);
+  if (!safe) throw new Error("blocked");
   const keyText = secret().k;
   if (!keyText) throw new Error("decrypt");
   let res;
   try {
-    res = await fetch(url);
+    res = await fetch(safe, { referrerPolicy: "no-referrer" });
   } catch (e) {
     throw new Error("fetch");
   }
@@ -272,7 +354,7 @@ async function decryptMediaNow(url, mime) {
   } catch (e) {
     throw new Error("decrypt");
   }
-  const type = mime || guessImageMime(new Uint8Array(plain));
+  const type = safeMime(mime, guessImageMime(new Uint8Array(plain)));
   return URL.createObjectURL(new Blob([plain], { type }));
 }
 
@@ -296,23 +378,47 @@ async function decryptMediaFile(url, mime) {
 }
 
 async function sendFeedback(item) {
-  const box = secret().f;
-  if (!box) throw new Error("sin buzón");
-  const res = await fetch("https://webhook.site/" + box, {
+  const box = String(secret().f || "").trim();
+  if (!FEEDBACK_UUID.test(box)) throw new Error("sin buzón");
+  let endpoint;
+  try {
+    endpoint = new URL("https://webhook.site/" + box);
+  } catch (err) {
+    throw new Error("sin buzón");
+  }
+  if (endpoint.origin !== "https://webhook.site" || endpoint.pathname !== "/" + box) throw new Error("sin buzón");
+  if (endpoint.search || endpoint.hash || endpoint.username || endpoint.password) throw new Error("sin buzón");
+  const src = item || {};
+  const payload = { kind: src.kind };
+  if (src.blockId != null) payload.blockId = String(src.blockId).slice(0, 200);
+  if (src.choice != null) payload.choice = String(src.choice).slice(0, 32);
+  if (src.text != null) payload.text = String(src.text).slice(0, FEEDBACK_TEXT_MAX);
+  payload.at = new Date().toISOString();
+  const body = JSON.stringify(payload);
+  if (body.length > 400000) throw new Error("grande");
+  const res = await fetch(endpoint.href, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ ...item, at: new Date().toISOString() })
+    body,
+    redirect: "error",
+    referrerPolicy: "no-referrer",
+    credentials: "omit"
   });
   if (!res.ok) throw new Error(String(res.status));
 }
 
 function mediaActions(src, name) {
-  return `<div class="actions"><a class="act" href="${esc(src)}" download="${esc(name)}" target="_blank" rel="noopener">Descargar</a></div>`;
+  const href = safeMediaUrl(src);
+  if (!href) return "";
+  return `<div class="actions"><a class="act" href="${esc(href)}" download="${esc(name)}" target="_blank" rel="noopener noreferrer">Descargar</a></div>`;
 }
 
 function encMedia(kind, d, alt) {
+  const src = safeMediaUrl(d.src || "");
+  if (!src) return deniedHint();
+  const poster = safeMediaUrl(d.poster || "");
   const name = d.filename || (kind === "video" ? "video.mp4" : kind === "audio" ? "voz.mp3" : "still.jpg");
-  return `<div class="enc-media" aria-busy="true" data-src="${esc(d.src || "")}" data-mime="${esc(d.mime || "")}" data-name="${esc(name)}" data-kind="${kind}" data-poster="${esc(d.poster || "")}" data-poster-enc="${d.posterEnc === true ? "1" : ""}" data-alt="${esc(alt || "")}"><p class="hint" data-enc-status role="status">Descifrando…</p></div><div class="actions"><a class="act" data-enc-dl hidden download="${esc(name)}" target="_blank" rel="noopener">Descargar</a></div>`;
+  return `<div class="enc-media" aria-busy="true" data-src="${esc(src)}" data-mime="${esc(d.mime || "")}" data-name="${esc(name)}" data-kind="${kind}" data-poster="${esc(poster)}" data-poster-enc="${d.posterEnc === true ? "1" : ""}" data-alt="${esc(alt || "")}"><p class="hint" data-enc-status role="status">Descifrando…</p></div><div class="actions"><a class="act" data-enc-dl hidden download="${esc(name)}" target="_blank" rel="noopener noreferrer">Descargar</a></div>`;
 }
 
 function showEncError(el, message) {
@@ -369,14 +475,18 @@ function mountEncMedia(el, objectUrl, posterUrl) {
 
 async function hydrateEncMedia(el) {
   if (!el.isConnected || el.dataset.ready === "1" || el.dataset.pending === "1") return;
-  const src = el.dataset.src || "";
-  if (!src) {
+  const src = safeMediaUrl(el.dataset.src || "");
+  if (!el.dataset.src) {
     showEncError(el, encErrorText(new Error("missing")));
+    return;
+  }
+  if (!src) {
+    showEncError(el, "Enlace no permitido.");
     return;
   }
   el.dataset.pending = "1";
   const mime = el.dataset.mime || "";
-  const poster = el.dataset.poster || "";
+  const poster = safeMediaUrl(el.dataset.poster || "");
   try {
     const mediaPromise = decryptMediaFile(src, mime);
     let posterPromise = Promise.resolve("");
@@ -439,7 +549,9 @@ function block(b) {
       : (d.items || []);
     const cards = items.map((it) => {
       const inner = `<strong>${esc(it.title)}</strong><p>${esc(it.body || "")}</p>`;
-      return it.href ? `<a class="card" href="${esc(it.href)}">${inner}</a>` : `<div class="card">${inner}</div>`;
+      const href = it.href ? safeHttpsUrl(it.href) : "";
+      if (it.href && !href) return `<div class="card">${inner}<p class="hint">Enlace no permitido.</p></div>`;
+      return href ? `<a class="card" href="${esc(href)}" rel="noopener noreferrer">${inner}</a>` : `<div class="card">${inner}</div>`;
     }).join("");
     return `<article>${title}<div class="cards">${cards}</div></article>`;
   }
@@ -455,7 +567,8 @@ function block(b) {
     return `<article data-check>${title}<ul class="clean">${items}</ul></article>`;
   }
   if (t === "callout") {
-    return `<article><div class="callout ${esc(d.tone || "")}">${title}<p class="prose">${esc(d.text || "")}</p></div></article>`;
+    const tone = allowToken(d.tone, CALLOUT_TONES);
+    return `<article><div class="callout${tone ? " " + tone : ""}">${title}<p class="prose">${esc(d.text || "")}</p></div></article>`;
   }
   if (t === "steps") {
     const items = (d.items || []).map((it, i) => `<li class="row"><span class="when">${i + 1}</span><div><strong>${esc(it.title)}</strong><div class="meta">${esc(it.body || "")}</div></div></li>`).join("");
@@ -481,23 +594,36 @@ function block(b) {
     if (d.enc === true) {
       return `<article data-approve="${esc(b.id)}">${title}${encMedia("video", d, "")}<div class="actions"><button class="act" type="button" data-choice="go">GO</button><button class="ghost act" type="button" data-choice="changes">Pedir cambios</button></div><p class="toast" data-toast></p></article>`;
     }
-    const src = d.src || "";
-    return `<article data-approve="${esc(b.id)}">${title}<video controls playsinline preload="metadata" poster="${esc(d.poster || "")}" src="${esc(src)}"></video>${mediaActions(src, d.filename || "video.mp4")}<div class="actions"><button class="act" type="button" data-choice="go">GO</button><button class="ghost act" type="button" data-choice="changes">Pedir cambios</button></div><p class="toast" data-toast></p></article>`;
+    const src = safeMediaUrl(d.src || "");
+    const poster = safeMediaUrl(d.poster || "");
+    const player = src
+      ? `<video controls playsinline preload="metadata"${poster ? ` poster="${esc(poster)}"` : ""} src="${esc(src)}"></video>${mediaActions(src, d.filename || "video.mp4")}`
+      : deniedHint();
+    return `<article data-approve="${esc(b.id)}">${title}${player}<div class="actions"><button class="act" type="button" data-choice="go">GO</button><button class="ghost act" type="button" data-choice="changes">Pedir cambios</button></div><p class="toast" data-toast></p></article>`;
   }
   if (t === "audio") {
     if (d.enc === true) return `<article>${title}${encMedia("audio", d, "")}</article>`;
-    const src = d.src || "";
-    return `<article>${title}<audio controls preload="metadata" src="${esc(src)}"></audio>${mediaActions(src, d.filename || "voz.mp3")}</article>`;
+    const src = safeMediaUrl(d.src || "");
+    const player = src
+      ? `<audio controls preload="metadata" src="${esc(src)}"></audio>${mediaActions(src, d.filename || "voz.mp3")}`
+      : deniedHint();
+    return `<article>${title}${player}</article>`;
   }
   if (t === "image") {
     if (d.enc === true) {
       return `<article data-approve="${esc(b.id)}">${title}${encMedia("image", d, d.alt || b.title || "")}<div class="actions"><button class="act" type="button" data-choice="go">GO</button><button class="ghost act" type="button" data-choice="changes">Pedir cambios</button></div><p class="toast" data-toast></p></article>`;
     }
-    const src = d.src || "";
-    return `<article data-approve="${esc(b.id)}">${title}<img class="still" alt="${esc(d.alt || b.title || "")}" src="${esc(src)}">${mediaActions(src, d.filename || "still.jpg")}<div class="actions"><button class="act" type="button" data-choice="go">GO</button><button class="ghost act" type="button" data-choice="changes">Pedir cambios</button></div><p class="toast" data-toast></p></article>`;
+    const src = safeMediaUrl(d.src || "");
+    const player = src
+      ? `<img class="still" alt="${esc(d.alt || b.title || "")}" src="${esc(src)}">${mediaActions(src, d.filename || "still.jpg")}`
+      : deniedHint();
+    return `<article data-approve="${esc(b.id)}">${title}${player}<div class="actions"><button class="act" type="button" data-choice="go">GO</button><button class="ghost act" type="button" data-choice="changes">Pedir cambios</button></div><p class="toast" data-toast></p></article>`;
   }
   if (t === "pipeline") {
-    const steps = (d.steps || []).map((s) => `<div class="step ${esc(s.state || "")}"><div class="dot"></div>${esc(s.label)}</div>`).join("");
+    const steps = (d.steps || []).map((s) => {
+      const state = allowToken(s.state, PIPE_STATES);
+      return `<div class="step${state ? " " + state : ""}"><div class="dot"></div>${esc(s.label)}</div>`;
+    }).join("");
     return `<article>${title}<div class="pipe">${steps}</div></article>`;
   }
   return `<article>${title}<p class="prose">${esc(JSON.stringify(d))}</p></article>`;
@@ -598,11 +724,13 @@ async function load() {
   }
   const id = sec.b.replace(/[^a-zA-Z0-9_-]/g, "");
   const sameHost = location.hostname === "raw.githack.com" || location.hostname.endsWith("github.io") || location.hostname === "localhost" || location.hostname === "127.0.0.1";
-  const url = sameHost
+  const rawUrl = sameHost
     ? `scenes/${id}.json?t=${Date.now()}`
     : `https://raw.githack.com/JorgeDeArmas/grok-canvas/main/scenes/${id}.json?t=${Date.now()}`;
+  const url = safeHttpsUrl(rawUrl);
   try {
-    const res = await fetch(url, { cache: "no-store" });
+    if (!url) throw new Error("url");
+    const res = await fetch(url, { cache: "no-store", referrerPolicy: "no-referrer" });
     if (!res.ok) throw new Error(String(res.status));
     render(await decryptScene(await res.json(), sec.k));
   } catch (err) {
