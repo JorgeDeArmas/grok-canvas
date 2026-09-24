@@ -138,6 +138,7 @@ function money(n) {
 }
 
 function barChart(series) {
+  if (!series.length) return "";
   const vals = series.map((d) => Number(d.value) || 0);
   const max = Math.max(...vals, 1);
   const w = 320, h = 200, pad = 24;
@@ -153,6 +154,7 @@ function barChart(series) {
 }
 
 function lineChart(points) {
+  if (!points.length) return "";
   const vals = points.map((d) => Number(d.value) || 0);
   const max = Math.max(...vals, 1), min = Math.min(...vals, 0);
   const w = 320, h = 200, pad = 16;
@@ -276,10 +278,10 @@ function render(scene) {
 
 async function load() {
   const id = canvasId().replace(/[^a-zA-Z0-9_-]/g, "");
-  const onPages = location.hostname.endsWith("github.io");
-  const url = onPages
+  const sameHost = location.hostname === "raw.githack.com" || location.hostname.endsWith("github.io");
+  const url = sameHost
     ? `scenes/${id}.json?t=${Date.now()}`
-    : `https://cdn.jsdelivr.net/gh/JorgeDeArmas/grok-canvas@main/scenes/${id}.json?t=${Date.now()}`;
+    : `https://raw.githack.com/JorgeDeArmas/grok-canvas/main/scenes/${id}.json?t=${Date.now()}`;
   try {
     const res = await fetch(url, { cache: "no-store" });
     if (!res.ok) throw new Error(String(res.status));
