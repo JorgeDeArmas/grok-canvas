@@ -1,0 +1,333 @@
+{
+ "type": "creator-feed",
+ "version": 1,
+ "title": "Creator Feed",
+ "subtitle": "Videos por encima del promedio de cada creador · posible empuje GMV Max",
+ "updated_at": "2026-09-25T09:07-04:00",
+ "updated_label": "Actualizado: 25 sep 2026, 9:07 a. m. ET",
+ "windows": [
+  3,
+  7,
+  15,
+  30
+ ],
+ "counts": {
+  "outliers_por_ventana": {
+   "3": 1,
+   "7": 2,
+   "15": 3,
+   "30": 4
+  },
+  "tarjetas_por_ventana": {
+   "3": 1,
+   "7": 2,
+   "15": 3,
+   "30": 4
+  },
+  "tarjetas": 4,
+  "outliers_unicos": 4
+ },
+ "creators": [
+  {
+   "handle": "demo.creator",
+   "count": 2
+  },
+  {
+   "handle": "otra.cuenta",
+   "count": 1
+  },
+  {
+   "handle": "tercera",
+   "count": 1
+  },
+  {
+   "handle": "sin.videos",
+   "count": 0
+  }
+ ],
+ "labels": {
+  "all": "Todas",
+  "creators_all": "Todos",
+  "open_tiktok": "Abrir en TikTok",
+  "score": "Score GMV Max",
+  "no_product": "Producto sin identificar",
+  "verify": "Verificar afiliación/stock en Shop",
+  "empty": "No hay videos en esta ventana hoy.",
+  "tap_play": "Toca para ver",
+  "ad": "Anuncio",
+  "saves_na": "—"
+ },
+ "method": "Outlier = vistas ≥ 2× la mediana del creador en la ventana, z-robusto(log vistas) ≥ 1, ≥ 10k vistas y engagement ≥ 0,5× su mediana. Score = GMV Max Video Fidelity Score (proxy) v1.",
+ "cards": [
+  {
+   "id": "v1000000000000000000",
+   "video_id": "1000000000000000000",
+   "creator": "demo.creator",
+   "url": "https://www.tiktok.com/@demo.creator/video/1000000000000000000",
+   "caption": "Texto de ejemplo del caption del video (fixture sintético) con emojis 🔥✨",
+   "hook": "Hook de ejemplo: esto es lo que nadie te dice sobre este producto…",
+   "posted_at": "2026-09-18",
+   "age_label": "hace 6 d",
+   "metrics": {
+    "views": 24300,
+    "likes": 67,
+    "comments": 8,
+    "shares": 8,
+    "saves": 1520
+   },
+   "velocity": {
+    "per_day": 2560,
+    "label": "+2.560 vistas/día (prom.)"
+   },
+   "score": {
+    "value": 78.3,
+    "label": "GMV Max",
+    "coverage": 100
+   },
+   "windows": [
+    {
+     "w": 3,
+     "multiple": 4.1
+    },
+    {
+     "w": 7,
+     "multiple": 3.4
+    }
+   ],
+   "best": {
+    "w": 3,
+    "multiple": 4.1,
+    "label": "4.1x su promedio (3d)"
+   },
+   "is_ad": true,
+   "cover": {
+    "enc": true,
+    "src": "https://cdn.jsdelivr.net/gh/JorgeDeArmas/grok-canvas@0000000000000000000000000000000000000000/media/mfixture0c000000000.enc",
+    "mime": "image/jpeg"
+   },
+   "preview": {
+    "enc": true,
+    "src": "https://cdn.jsdelivr.net/gh/JorgeDeArmas/grok-canvas@0000000000000000000000000000000000000000/media/mfixture0p000000000.enc",
+    "mime": "video/mp4"
+   },
+   "product": {
+    "id": "1700000000000000000",
+    "title": "Producto de ejemplo con un título bastante largo para probar el recorte",
+    "price": "$35.00 - 105.00",
+    "commission": "15%",
+    "sales": "1.240 vendidos (7d)",
+    "score": null,
+    "href": "https://shop.tiktok.com/us/pdp/1700000000000000000",
+    "image": {
+     "enc": true,
+     "src": "https://cdn.jsdelivr.net/gh/JorgeDeArmas/grok-canvas@0000000000000000000000000000000000000000/media/mfixture0p000000000.enc",
+     "mime": "image/jpeg"
+    },
+    "verify": "Verificar afiliación/stock en Shop"
+   },
+   "video_sales": {
+    "units": 87,
+    "gmv": 3096.0,
+    "label": "87 vendidos con este video · $3.096 GMV"
+   },
+   "product_status": "ok",
+   "product_missing_label": null
+  },
+  {
+   "id": "v1000000000000000001",
+   "video_id": "1000000000000000001",
+   "creator": "otra.cuenta",
+   "url": "https://www.tiktok.com/@otra.cuenta/video/1000000000000000001",
+   "caption": "Texto de ejemplo del caption del video (fixture sintético) con emojis 🔥✨",
+   "hook": "Hook de ejemplo: esto es lo que nadie te dice sobre este producto…",
+   "posted_at": "2026-09-18",
+   "age_label": "hace 7 d",
+   "metrics": {
+    "views": 41300,
+    "likes": 986,
+    "comments": 9,
+    "shares": 122,
+    "saves": null
+   },
+   "velocity": {
+    "per_day": 5645,
+    "label": "+5.645 vistas/día (prom.)"
+   },
+   "score": {
+    "value": 77.6,
+    "label": "GMV Max",
+    "coverage": 100
+   },
+   "windows": [
+    {
+     "w": 15,
+     "multiple": 11.24
+    },
+    {
+     "w": 30,
+     "multiple": 32.49
+    }
+   ],
+   "best": {
+    "w": 30,
+    "multiple": 32.49,
+    "label": "32.5x su promedio (30d)"
+   },
+   "is_ad": true,
+   "cover": {
+    "enc": true,
+    "src": "https://cdn.jsdelivr.net/gh/JorgeDeArmas/grok-canvas@0000000000000000000000000000000000000000/media/mfixture1c000000000.enc",
+    "mime": "image/jpeg"
+   },
+   "preview": {
+    "enc": true,
+    "src": "https://cdn.jsdelivr.net/gh/JorgeDeArmas/grok-canvas@0000000000000000000000000000000000000000/media/mfixture1p000000000.enc",
+    "mime": "video/mp4"
+   },
+   "product": {
+    "id": "1700000000000000000",
+    "title": "Producto de ejemplo con un título bastante largo para probar el recorte",
+    "price": "$23.40",
+    "commission": null,
+    "sales": null,
+    "score": null,
+    "href": "https://shop.tiktok.com/us/pdp/1700000000000000000",
+    "image": {
+     "enc": true,
+     "src": "https://cdn.jsdelivr.net/gh/JorgeDeArmas/grok-canvas@0000000000000000000000000000000000000000/media/mfixture1p000000000.enc",
+     "mime": "image/jpeg"
+    },
+    "verify": "Verificar afiliación/stock en Shop"
+   },
+   "video_sales": {
+    "units": 307,
+    "gmv": 13420.0,
+    "label": "307 vendidos con este video · $13.420 GMV"
+   },
+   "product_status": "ok",
+   "product_missing_label": null
+  },
+  {
+   "id": "v1000000000000000002",
+   "video_id": "1000000000000000002",
+   "creator": "demo.creator",
+   "url": "https://www.tiktok.com/@demo.creator/video/1000000000000000002",
+   "caption": "Texto de ejemplo del caption del video (fixture sintético) con emojis 🔥✨",
+   "hook": null,
+   "posted_at": "2026-09-20",
+   "age_label": "hace 4 d",
+   "metrics": {
+    "views": 10600,
+    "likes": 398,
+    "comments": 13,
+    "shares": 20,
+    "saves": null
+   },
+   "velocity": {
+    "per_day": 2295,
+    "label": "+2.295 vistas/día (prom.)"
+   },
+   "score": {
+    "value": 73.9,
+    "label": "GMV Max",
+    "coverage": 100
+   },
+   "windows": [
+    {
+     "w": 30,
+     "multiple": 8.33
+    }
+   ],
+   "best": {
+    "w": 30,
+    "multiple": 8.33,
+    "label": "8.3x su promedio (30d)"
+   },
+   "is_ad": true,
+   "cover": {
+    "enc": true,
+    "src": "https://cdn.jsdelivr.net/gh/JorgeDeArmas/grok-canvas@0000000000000000000000000000000000000000/media/mfixture2c000000000.enc",
+    "mime": "image/jpeg"
+   },
+   "preview": {
+    "enc": true,
+    "src": "https://cdn.jsdelivr.net/gh/JorgeDeArmas/grok-canvas@0000000000000000000000000000000000000000/media/mfixture2p000000000.enc",
+    "mime": "video/mp4"
+   },
+   "product": {
+    "id": "1700000000000000000",
+    "title": "Producto de ejemplo con un título bastante largo para probar el recorte",
+    "price": "$12.00",
+    "commission": null,
+    "sales": null,
+    "score": null,
+    "href": "https://shop.tiktok.com/us/pdp/1700000000000000000",
+    "image": {
+     "enc": true,
+     "src": "https://cdn.jsdelivr.net/gh/JorgeDeArmas/grok-canvas@0000000000000000000000000000000000000000/media/mfixture2p000000000.enc",
+     "mime": "image/jpeg"
+    },
+    "verify": "Verificar afiliación/stock en Shop"
+   },
+   "video_sales": {
+    "units": 234,
+    "gmv": 7103.0,
+    "label": "234 vendidos con este video · $7.103 GMV"
+   },
+   "product_status": "ok",
+   "product_missing_label": null
+  },
+  {
+   "id": "v1000000000000000003",
+   "video_id": "1000000000000000003",
+   "creator": "tercera",
+   "url": "https://www.tiktok.com/@tercera/video/1000000000000000003",
+   "caption": "Texto de ejemplo del caption del video (fixture sintético) con emojis 🔥✨",
+   "hook": "Hook de ejemplo: esto es lo que nadie te dice sobre este producto…",
+   "posted_at": "2026-09-17",
+   "age_label": "hace 7 d",
+   "metrics": {
+    "views": 28100,
+    "likes": 848,
+    "comments": 14,
+    "shares": 46,
+    "saves": null
+   },
+   "velocity": {
+    "per_day": 3643,
+    "label": "+3.643 vistas/día (prom.)"
+   },
+   "score": {
+    "value": 73.3,
+    "label": "GMV Max",
+    "coverage": 100
+   },
+   "windows": [
+    {
+     "w": 30,
+     "multiple": 22.11
+    }
+   ],
+   "best": {
+    "w": 30,
+    "multiple": 22.11,
+    "label": "22.1x su promedio (30d)"
+   },
+   "is_ad": true,
+   "cover": {
+    "enc": true,
+    "src": "https://cdn.jsdelivr.net/gh/JorgeDeArmas/grok-canvas@0000000000000000000000000000000000000000/media/mfixture3c000000000.enc",
+    "mime": "image/jpeg"
+   },
+   "preview": null,
+   "product": null,
+   "video_sales": {
+    "units": 98,
+    "gmv": 3293.0,
+    "label": "98 vendidos con este video · $3.293 GMV"
+   },
+   "product_status": "sin_identificar",
+   "product_missing_label": "Producto sin identificar"
+  }
+ ]
+}
