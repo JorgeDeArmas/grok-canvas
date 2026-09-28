@@ -31,7 +31,7 @@
   .hrow { display: flex; align-items: baseline; justify-content: space-between; gap: 4px 12px; flex-wrap: wrap; }
   h1 { font-size: 24px; margin: 0; letter-spacing: -.02em; }
   .meta { color: var(--muted); font-size: 13px; white-space: nowrap; }
-  .counters { display: grid; grid-template-columns: repeat(auto-fit, minmax(70px, 1fr)); gap: 6px; margin-top: 10px; }
+  .counters { display: grid; grid-template-columns: repeat(auto-fit, minmax(58px, 1fr)); gap: 6px; margin-top: 10px; }
   .ctr { background: var(--card); border-radius: 12px; padding: 6px 10px; min-width: 0; }
   .ctr b { display: block; font-size: 20px; letter-spacing: -.02em; }
   .ctr span { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
@@ -76,6 +76,15 @@
   button.done.txt { width: auto; padding: 0 12px; border-radius: 10px; font: 600 13px/33px -apple-system, "Segoe UI", sans-serif; }
   @media (hover: hover) { button.done:hover { border-color: var(--good); background: color-mix(in srgb, var(--good) 12%, transparent); } }
   .empty { color: var(--muted); font-size: 14px; padding: 10px 4px 12px; }
+  .chip { display: inline-block; vertical-align: 1px; margin-left: 6px; padding: 1px 8px; border-radius: 999px; font-size: 12px; font-weight: 600;
+    background: var(--chip); color: var(--text); white-space: nowrap; }
+  .chip.c-warn { background: color-mix(in srgb, var(--warn) 22%, transparent); }
+  .chip.c-good { background: color-mix(in srgb, var(--good) 22%, transparent); }
+  .chip.c-bad { background: color-mix(in srgb, var(--bad) 22%, transparent); }
+  .chip.c-info { background: color-mix(in srgb, var(--info) 20%, transparent); }
+  button.act { min-height: 36px; padding: 0 12px; border-radius: 10px; border: 1.5px solid var(--accent); background: transparent;
+    color: var(--accent); font: 600 13px/33px -apple-system, "Segoe UI", sans-serif; cursor: pointer; white-space: nowrap; }
+  button.act:disabled { border-color: var(--line); color: var(--muted); cursor: default; }
   .more { color: var(--muted); font-size: 13px; padding: 6px 4px 10px; }
   .foot { max-width: 1280px; margin: 0 auto; padding: 0 16px calc(24px + var(--safe-b)); color: var(--muted); font-size: 12.5px; }
   .foot p { margin: 4px 0; }
@@ -155,21 +164,28 @@ async function sendFeedback(payload) {
 
 let scene = null, sig = "", undoFn = null, toastTimer = 0;
 
-function itemHtml(it) {
+function itemHtml(it, done) {
   const id = ID_RE.test(String(it.id || "")) ? String(it.id) : "";
   const tone = TONES.has(it.tone) ? " t-" + it.tone : "";
   const href = it.href ? safeHttpsUrl(it.href) : "";
   const link = href ? `<a class="go${it.quiet ? " ghost" : ""}" href="${esc(href)}" target="_blank" rel="noopener noreferrer">${esc(it.hrefLabel || "Abrir")}</a>` : "";
-  let done = "";
+  let doneBtn = "";
   if (id && it.done) {
     const label = typeof it.done === "string" ? it.done : "";
-    done = label
+    doneBtn = label
       ? `<button class="done txt" type="button" data-done="${esc(id)}">${esc(label)}</button>`
       : `<button class="done" type="button" data-done="${esc(id)}" aria-label="Hecho" title="Hecho">✓</button>`;
   }
+  let act = "";
+  if (it.act && ID_RE.test(String(it.act.id || ""))) {
+    const aid = String(it.act.id);
+    const on = !!(done && done[aid]);
+    act = `<button class="act" type="button" data-act="${esc(aid)}"${on ? " disabled" : ""}>${esc(on ? (it.act.doneLabel || "Anotado ✓") : (it.act.label || "Hecho"))}</button>`;
+  }
+  const chip = it.chip && it.chip.text ? `<span class="chip${TONES.has(it.chip.tone) ? " c-" + it.chip.tone : ""}">${esc(it.chip.text)}</span>` : "";
   const verb = it.verb ? `<b>${esc(it.verb)}</b>` : "";
   const sep = it.verb && it.title ? " · " : "";
-  return `<div class="it${tone}${it.quiet ? " quiet" : ""}" data-id="${esc(id)}"><span class="bar"></span><div class="tx"><div class="ln">${verb}${sep}${esc(it.title || "")}</div>${it.sub ? `<div class="sub">${esc(it.sub)}</div>` : ""}</div><div class="bt">${link}${done}</div></div>`;
+  return `<div class="it${tone}${it.quiet ? " quiet" : ""}" data-id="${esc(id)}"><span class="bar"></span><div class="tx"><div class="ln">${verb}${sep}${esc(it.title || "")}${chip}</div>${it.sub ? `<div class="sub">${esc(it.sub)}</div>` : ""}</div><div class="bt">${link}${act}${doneBtn}</div></div>`;
 }
 
 function sectionHtml(s, done) {
@@ -179,7 +195,7 @@ function sectionHtml(s, done) {
   const limit = Number(s.limit) > 0 ? Number(s.limit) : 50;
   items.slice(0, limit).forEach((it) => {
     if (it.group && it.group !== lastGroup) { body += `<div class="grp">${esc(it.group)}</div>`; lastGroup = it.group; }
-    body += itemHtml(it);
+    body += itemHtml(it, done);
   });
   if (!items.length) body = `<div class="empty">${esc(s.empty || "Nada pendiente ✓")}</div>`;
   else if (items.length > limit) body += `<div class="more">+${items.length - limit} más</div>`;
@@ -206,6 +222,7 @@ function render(force) {
   const hasBox = FEEDBACK_UUID.test(secret().f || "");
   $("foot").innerHTML = notes + (hasBox ? `<details class="note"><summary>Nota para Grok</summary><textarea id="note" placeholder="Un cambio, una duda, algo que ya hiciste…"></textarea><p><button class="go" type="button" id="noteSend">Enviar</button> <span id="noteMsg"></span></p></details>` : "");
   document.querySelectorAll("button[data-done]").forEach((btn) => btn.addEventListener("click", () => markDone(btn.dataset.done, btn)));
+  document.querySelectorAll("button[data-act]").forEach((btn) => btn.addEventListener("click", () => markAct(btn.dataset.act, btn)));
   const ns = $("noteSend");
   if (ns) ns.addEventListener("click", async () => {
     const area = $("note");
@@ -233,6 +250,19 @@ function markDone(id, btn) {
   let sent = false;
   sendFeedback({ kind: "approve", blockId: id, choice: "done" }).then(() => { sent = true; }).catch(() => {});
   toast("Listo ✓", () => {
+    const m = loadDone(); delete m[id]; saveDone(m); render(true);
+    sendFeedback({ kind: "approve", blockId: id, choice: "undo" }).catch(() => {});
+  });
+}
+
+// Action buttons (Llegó, Pedí muestra…) keep the row; they only record the tap.
+function markAct(id, btn) {
+  if (!ID_RE.test(id) || btn.disabled) return;
+  btn.disabled = true;
+  const map = loadDone(); map[id] = Date.now(); saveDone(map);
+  sendFeedback({ kind: "approve", blockId: id, choice: "done" }).catch(() => {});
+  render(true);
+  toast("Anotado ✓", () => {
     const m = loadDone(); delete m[id]; saveDone(m); render(true);
     sendFeedback({ kind: "approve", blockId: id, choice: "undo" }).catch(() => {});
   });
