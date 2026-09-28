@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self'; connect-src 'self' https://webhook.site; base-uri 'none'; form-action 'none'; object-src 'none'; frame-ancestors 'none'">
+<meta name="theme-color" content="#f2f2f7">
+<title>Tu día</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #f2f2f7; --card: #fff; --text: #1c1c1e; --muted: #6e6e73;
+    --line: rgba(60,60,67,.14); --accent: #007aff; --good: #34c759;
+    --bad: #ff3b30; --warn: #ff9500; --info: #5e5ce6; --chip: #e9e9ee;
+    --safe-t: env(safe-area-inset-top, 0px); --safe-b: env(safe-area-inset-bottom, 0px);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #000; --card: #1c1c1e; --text: #f5f5f7; --muted: #98989d;
+      --line: rgba(255,255,255,.10); --accent: #0a84ff; --chip: #2c2c2e; }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body { font: 16px/1.35 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+    background: var(--bg); color: var(--text); -webkit-text-size-adjust: 100%; }
+  header { position: sticky; top: 0; z-index: 3; padding: calc(10px + var(--safe-t)) 16px 10px;
+    background: color-mix(in srgb, var(--bg) 88%, transparent);
+    backdrop-filter: saturate(180%) blur(16px); -webkit-backdrop-filter: saturate(180%) blur(16px);
+    border-bottom: 1px solid var(--line); }
+  .top { max-width: 1280px; margin: 0 auto; }
+  .hrow { display: flex; align-items: baseline; justify-content: space-between; gap: 4px 12px; flex-wrap: wrap; }
+  h1 { font-size: 24px; margin: 0; letter-spacing: -.02em; }
+  .meta { color: var(--muted); font-size: 13px; white-space: nowrap; }
+  .counters { display: grid; grid-template-columns: repeat(auto-fit, minmax(70px, 1fr)); gap: 6px; margin-top: 10px; }
+  .ctr { background: var(--card); border-radius: 12px; padding: 6px 10px; min-width: 0; }
+  .ctr b { display: block; font-size: 20px; letter-spacing: -.02em; }
+  .ctr span { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
+  .ctr.z b { color: var(--muted); }
+  main { max-width: 1280px; margin: 0 auto; padding: 12px 12px 16px;
+    display: grid; gap: 12px; grid-template-columns: 1fr; align-items: start; }
+  .rest { display: grid; gap: 12px; min-width: 0; }
+  @media (min-width: 860px) {
+    main { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); padding: 16px 20px 20px; gap: 16px; }
+    .rest { gap: 16px; }
+    h1 { font-size: 28px; }
+  }
+  @media (min-width: 1200px) {
+    main { grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); }
+    .rest { display: block; column-count: 2; column-gap: 16px; }
+    .rest section { break-inside: avoid; margin-bottom: 16px; }
+  }
+  section { background: var(--card); border-radius: 16px; padding: 12px 12px 6px; min-width: 0; }
+  .quiet .ln { color: var(--muted); }
+  a.go.ghost { background: var(--chip); color: var(--text); }
+  section h2 { font-size: 15px; margin: 2px 4px 8px; display: flex; justify-content: space-between; align-items: baseline; }
+  section h2 i { font-style: normal; color: var(--muted); font-weight: 500; font-size: 13px; }
+  section.lead h2 { font-size: 18px; }
+  .grp { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; margin: 10px 4px 2px; }
+  .it { display: flex; align-items: center; gap: 10px; padding: 10px 4px; border-top: 1px solid var(--line);
+    transition: opacity .25s, transform .25s; }
+  .grp + .it, h2 + .it { border-top: 0; }
+  .it.gone { opacity: 0; transform: translateX(24px); }
+  .bar { width: 4px; align-self: stretch; border-radius: 4px; background: var(--chip); flex: none; }
+  .t-bad .bar { background: var(--bad); } .t-warn .bar { background: var(--warn); }
+  .t-good .bar { background: var(--good); } .t-info .bar { background: var(--info); }
+  .tx { flex: 1; min-width: 0; }
+  .ln { font-size: 15.5px; }
+  .ln b { font-weight: 650; }
+  section.lead .ln { font-size: 16.5px; }
+  .sub { color: var(--muted); font-size: 13px; margin-top: 2px; }
+  .bt { display: flex; gap: 6px; flex: none; }
+  a.go, button.go { min-height: 36px; padding: 0 12px; border-radius: 10px; border: 0; background: var(--accent);
+    color: #fff; font: 600 14px/36px -apple-system, "Segoe UI", sans-serif; text-decoration: none; cursor: pointer; white-space: nowrap; }
+  button.done { width: 36px; height: 36px; border-radius: 18px; border: 1.5px solid var(--line); background: transparent;
+    color: var(--good); font-size: 17px; cursor: pointer; flex: none; }
+  button.done.txt { width: auto; padding: 0 12px; border-radius: 10px; font: 600 13px/33px -apple-system, "Segoe UI", sans-serif; }
+  @media (hover: hover) { button.done:hover { border-color: var(--good); background: color-mix(in srgb, var(--good) 12%, transparent); } }
+  .empty { color: var(--muted); font-size: 14px; padding: 10px 4px 12px; }
+  .more { color: var(--muted); font-size: 13px; padding: 6px 4px 10px; }
+  .foot { max-width: 1280px; margin: 0 auto; padding: 0 16px calc(24px + var(--safe-b)); color: var(--muted); font-size: 12.5px; }
+  .foot p { margin: 4px 0; }
+  details.note { margin-top: 10px; background: var(--card); border-radius: 14px; padding: 4px 12px; }
+  details.note summary { min-height: 40px; display: flex; align-items: center; font-weight: 600; color: var(--text); cursor: pointer; }
+  textarea { width: 100%; min-height: 90px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg);
+    color: var(--text); font: 16px/1.4 -apple-system, "Segoe UI", sans-serif; padding: 10px; }
+  .toast { position: fixed; left: 50%; bottom: calc(18px + var(--safe-b)); transform: translateX(-50%); z-index: 5;
+    background: #1c1c1e; color: #fff; border-radius: 12px; padding: 10px 14px; font-size: 14px; display: none; gap: 14px; align-items: center; box-shadow: 0 4px 18px rgba(0,0,0,.25); }
+  .toast.on { display: flex; }
+  .toast button { background: transparent; border: 0; color: #64d2ff; font: 600 14px -apple-system, sans-serif; cursor: pointer; }
+  .status { color: var(--muted); padding: 30px 16px; text-align: center; }
+</style>
+</head>
+<body>
+<header><div class="top">
+  <div class="hrow"><h1 id="title">Tu día</h1><span class="meta" id="meta">Cargando…</span></div>
+  <div class="counters" id="counters"></div>
+</div></header>
+<main id="main"></main>
+<div class="foot" id="foot"></div>
+<div class="toast" id="toast" role="status"><span id="toastMsg"></span><button type="button" id="undo">Deshacer</button></div>
+<script>
+const $ = (id) => document.getElementById(id);
+const TONES = new Set(["bad", "warn", "good", "info"]);
+const FEEDBACK_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const ID_RE = /^[a-z0-9:_.-]{1,120}$/i;
+
+function esc(s) {
+  return String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+function safeHttpsUrl(raw) {
+  const text = String(raw ?? "").trim();
+  if (!text || text.length > 4096 || /[\u0000-\u001F\u007F\u2028\u2029\\]/.test(text) || text.startsWith("//")) return "";
+  let url;
+  try { url = new URL(text, location.href); } catch (e) { return ""; }
+  if (url.username || url.password) return "";
+  if (url.protocol !== "https:") return "";
+  return url.href;
+}
+function secret() {
+  const h = new URLSearchParams((location.hash || "").replace(/^#/, ""));
+  return { b: h.get("b") || "", k: h.get("k") || "", f: h.get("f") || "" };
+}
+function b64urlToBytes(t) { const p = "=".repeat((4 - (t.length % 4)) % 4); const bin = atob(t.replace(/-/g, "+").replace(/_/g, "/") + p); return Uint8Array.from(bin, (c) => c.charCodeAt(0)); }
+function b64ToBytes(t) { const bin = atob(t); return Uint8Array.from(bin, (c) => c.charCodeAt(0)); }
+async function decryptScene(blob, keyText) {
+  const key = await crypto.subtle.importKey("raw", b64urlToBytes(keyText), "AES-GCM", false, ["decrypt"]);
+  const plain = await crypto.subtle.decrypt({ name: "AES-GCM", iv: b64ToBytes(blob.iv) }, key, b64ToBytes(blob.ct));
+  return JSON.parse(new TextDecoder().decode(plain));
+}
+
+// Local "done" memory so a tapped item disappears right away on this device.
+const DONE_TTL = 3 * 24 * 3600 * 1000;
+function doneKey() { return "hub-done:" + secret().b.replace(/[^a-z0-9]/gi, ""); }
+function loadDone() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(doneKey()) || "{}");
+    const now = Date.now(); const out = {};
+    for (const [k, v] of Object.entries(raw)) if (ID_RE.test(k) && typeof v === "number" && now - v < DONE_TTL) out[k] = v;
+    return out;
+  } catch (e) { return {}; }
+}
+function saveDone(map) { try { localStorage.setItem(doneKey(), JSON.stringify(map)); } catch (e) {} }
+
+async function sendFeedback(payload) {
+  const box = String(secret().f || "").trim();
+  if (!FEEDBACK_UUID.test(box)) throw new Error("sin buzón");
+  const endpoint = new URL("https://webhook.site/" + box);
+  if (endpoint.origin !== "https://webhook.site" || endpoint.pathname !== "/" + box) throw new Error("sin buzón");
+  const body = JSON.stringify(Object.assign({}, payload, { at: new Date().toISOString() }));
+  if (body.length > 60000) throw new Error("grande");
+  const res = await fetch(endpoint.href, { method: "POST", headers: { "Content-Type": "application/json" }, body,
+    redirect: "error", referrerPolicy: "no-referrer", credentials: "omit" });
+  if (!res.ok) throw new Error(String(res.status));
+}
+
+let scene = null, sig = "", undoFn = null, toastTimer = 0;
+
+function itemHtml(it) {
+  const id = ID_RE.test(String(it.id || "")) ? String(it.id) : "";
+  const tone = TONES.has(it.tone) ? " t-" + it.tone : "";
+  const href = it.href ? safeHttpsUrl(it.href) : "";
+  const link = href ? `<a class="go${it.quiet ? " ghost" : ""}" href="${esc(href)}" target="_blank" rel="noopener noreferrer">${esc(it.hrefLabel || "Abrir")}</a>` : "";
+  let done = "";
+  if (id && it.done) {
+    const label = typeof it.done === "string" ? it.done : "";
+    done = label
+      ? `<button class="done txt" type="button" data-done="${esc(id)}">${esc(label)}</button>`
+      : `<button class="done" type="button" data-done="${esc(id)}" aria-label="Hecho" title="Hecho">✓</button>`;
+  }
+  const verb = it.verb ? `<b>${esc(it.verb)}</b>` : "";
+  const sep = it.verb && it.title ? " · " : "";
+  return `<div class="it${tone}${it.quiet ? " quiet" : ""}" data-id="${esc(id)}"><span class="bar"></span><div class="tx"><div class="ln">${verb}${sep}${esc(it.title || "")}</div>${it.sub ? `<div class="sub">${esc(it.sub)}</div>` : ""}</div><div class="bt">${link}${done}</div></div>`;
+}
+
+function sectionHtml(s, done) {
+  const items = (Array.isArray(s.items) ? s.items : []).filter((it) => !done[it.id]);
+  const lead = s.lead ? " lead" : "";
+  let body = "", lastGroup = null;
+  const limit = Number(s.limit) > 0 ? Number(s.limit) : 50;
+  items.slice(0, limit).forEach((it) => {
+    if (it.group && it.group !== lastGroup) { body += `<div class="grp">${esc(it.group)}</div>`; lastGroup = it.group; }
+    body += itemHtml(it);
+  });
+  if (!items.length) body = `<div class="empty">${esc(s.empty || "Nada pendiente ✓")}</div>`;
+  else if (items.length > limit) body += `<div class="more">+${items.length - limit} más</div>`;
+  const count = items.length ? `<i>${items.length}</i>` : "";
+  return `<section class="${lead.trim()}" data-sec="${esc(s.id || "")}"><h2>${esc(s.title || "")}${count}</h2>${body}</section>`;
+}
+
+function render(force) {
+  if (!scene) return;
+  const done = loadDone();
+  const next = JSON.stringify(scene) + "|" + Object.keys(done).sort().join(",");
+  if (!force && next === sig) return;
+  sig = next;
+  document.title = scene.title || "Tu día";
+  $("title").textContent = scene.title || "Tu día";
+  const when = scene.updatedAt ? new Date(scene.updatedAt) : null;
+  const stamp = when && !Number.isNaN(when.getTime()) ? when.toLocaleTimeString("es", { hour: "numeric", minute: "2-digit" }) : "";
+  $("meta").textContent = stamp ? "act. " + stamp : "";
+  $("counters").innerHTML = (scene.counters || []).map((c) => `<div class="ctr${Number(c.value) ? "" : " z"}"><b>${esc(c.value)}</b><span>${esc(c.label)}</span></div>`).join("");
+  const secs = Array.isArray(scene.sections) ? scene.sections : [];
+  const lead = secs.filter((s) => s.lead), rest = secs.filter((s) => !s.lead);
+  $("main").innerHTML = lead.map((s) => sectionHtml(s, done)).join("") + `<div class="rest">${rest.map((s) => sectionHtml(s, done)).join("")}</div>`;
+  const notes = (scene.footer || []).map((t) => `<p>${esc(t)}</p>`).join("");
+  const hasBox = FEEDBACK_UUID.test(secret().f || "");
+  $("foot").innerHTML = notes + (hasBox ? `<details class="note"><summary>Nota para Grok</summary><textarea id="note" placeholder="Un cambio, una duda, algo que ya hiciste…"></textarea><p><button class="go" type="button" id="noteSend">Enviar</button> <span id="noteMsg"></span></p></details>` : "");
+  document.querySelectorAll("button[data-done]").forEach((btn) => btn.addEventListener("click", () => markDone(btn.dataset.done, btn)));
+  const ns = $("noteSend");
+  if (ns) ns.addEventListener("click", async () => {
+    const area = $("note");
+    try { await sendFeedback({ kind: "note", text: String(area.value || "").slice(0, 5000) }); area.value = ""; $("noteMsg").textContent = "Enviada."; }
+    catch (e) { $("noteMsg").textContent = "No se pudo enviar."; }
+  });
+}
+
+function toast(msg, onUndo) {
+  $("toastMsg").textContent = msg;
+  undoFn = onUndo || null;
+  $("undo").hidden = !onUndo;
+  $("toast").classList.add("on");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { $("toast").classList.remove("on"); undoFn = null; }, 5000);
+}
+$("undo").addEventListener("click", () => { if (undoFn) undoFn(); $("toast").classList.remove("on"); });
+
+function markDone(id, btn) {
+  if (!ID_RE.test(id)) return;
+  const row = btn.closest(".it");
+  if (row) row.classList.add("gone");
+  const map = loadDone(); map[id] = Date.now(); saveDone(map);
+  setTimeout(() => render(true), 260);
+  let sent = false;
+  sendFeedback({ kind: "approve", blockId: id, choice: "done" }).then(() => { sent = true; }).catch(() => {});
+  toast("Listo ✓", () => {
+    const m = loadDone(); delete m[id]; saveDone(m); render(true);
+    sendFeedback({ kind: "approve", blockId: id, choice: "undo" }).catch(() => {});
+  });
+}
+
+async function load() {
+  const sec = secret();
+  if (!sec.b || !sec.k) {
+    $("meta").textContent = "";
+    $("main").innerHTML = `<p class="status">Este enlace está incompleto. Pídele a Grok el enlace completo.</p>`;
+    return;
+  }
+  const okHost = location.hostname.endsWith("github.io") || location.hostname === "localhost" || location.hostname === "127.0.0.1";
+  if (!okHost) { $("main").innerHTML = `<p class="status">Abre este enlace desde jorgedearmas.github.io.</p>`; return; }
+  const id = sec.b.replace(/[^a-zA-Z0-9_-]/g, "");
+  try {
+    const res = await fetch(`scenes/${id}.json?t=${Date.now()}`, { cache: "no-store", referrerPolicy: "no-referrer" });
+    if (!res.ok) throw new Error(String(res.status));
+    const next = await decryptScene(await res.json(), sec.k);
+    if (!next || next.type !== "hub") throw new Error("type");
+    scene = next;
+    const active = document.activeElement;
+    if (active && active.id === "note" && active.value) return;
+    render(false);
+  } catch (e) {
+    if (scene) return;
+    $("meta").textContent = "";
+    $("main").innerHTML = `<p class="status">No se pudo abrir. La llave no coincide o todavía se está publicando.</p>`;
+  }
+}
+load();
+setInterval(load, 60000);
+document.addEventListener("visibilitychange", () => { if (!document.hidden) load(); });
+</script>
+</body>
+</html>
