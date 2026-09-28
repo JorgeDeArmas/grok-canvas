@@ -191,6 +191,12 @@
     text-decoration: none;
   }
   .open.dead { opacity: .65; }
+  .open-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  button.want {
+    display: inline-flex; margin-top: 8px; padding: 6px 12px; border-radius: 8px; border: 0;
+    background: #fe2c55; color: #fff; font: 700 13px/1.2 -apple-system, BlinkMacSystemFont, sans-serif; cursor: pointer;
+  }
+  button.want:disabled { background: rgba(255,255,255,.28); cursor: default; }
   .rail {
     position: absolute;
     right: 6px;
@@ -916,8 +922,44 @@ function buildOverlay(card, L) {
     line.textContent = String(card.video_sales.label);
     overlay.appendChild(line);
   }
-  overlay.appendChild(buildOpen(card, L));
+  const openRow = document.createElement("div");
+  openRow.className = "open-row";
+  openRow.appendChild(buildOpen(card, L));
+  const want = buildWant(card);
+  if (want) openRow.appendChild(want);
+  overlay.appendChild(openRow);
   return overlay;
+}
+
+// "Lo quiero": only records the pick in the mailbox (untrusted); the bot adds it to
+// Jorge's product tracker on the next hub refresh. No sends, no purchases.
+const WANT_ID = /^[0-9]{6,25}$/;
+function wantKey(pid) { return "feed-want:" + pid; }
+function wantDone(pid) { try { return localStorage.getItem(wantKey(pid)) === "1"; } catch (e) { return false; } }
+function buildWant(card) {
+  const pid = card && card.product && WANT_ID.test(String(card.product.id || "")) ? String(card.product.id) : "";
+  if (!pid || !feedbackBox()) return null;
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "want";
+  const done = wantDone(pid);
+  btn.textContent = done ? "Anotado ✓" : "Lo quiero";
+  btn.disabled = done;
+  btn.addEventListener("click", async (ev) => {
+    ev.stopPropagation();
+    if (btn.disabled) return;
+    btn.disabled = true;
+    btn.textContent = "Enviando…";
+    try {
+      await sendFeedback({ kind: "approve", blockId: "want:" + pid, choice: "want" });
+      try { localStorage.setItem(wantKey(pid), "1"); } catch (e) {}
+      btn.textContent = "Anotado ✓";
+    } catch (err) {
+      btn.disabled = false;
+      btn.textContent = "No se pudo · reintenta";
+    }
+  });
+  return btn;
 }
 
 function buildOpen(card, L) {
