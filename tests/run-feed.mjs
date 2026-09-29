@@ -9,7 +9,7 @@ import { chromium, devices, webkit } from "playwright";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const FIXTURE_PATH = path.join(ROOT, "tests", "fixtures", "creator-feed.json");
-const SHOTS = "/opt/cursor/artifacts/screenshots";
+const SHOTS = process.env.SHOTS_DIR || "/opt/cursor/artifacts/screenshots";
 const UUID = "12345678-1234-1234-1234-123456789abc";
 const MEDIA_BASE = "https://cdn.jsdelivr.net/gh/JorgeDeArmas/grok-canvas@0000000000000000000000000000000000000000/media/";
 

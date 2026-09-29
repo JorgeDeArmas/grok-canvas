@@ -934,8 +934,9 @@ function buildOverlay(card, L) {
 // "Lo quiero": only records the pick in the mailbox (untrusted); the bot adds it to
 // Jorge's product tracker on the next hub refresh. No sends, no purchases.
 const WANT_ID = /^[0-9]{6,25}$/;
-function wantKey(pid) { return "feed-want:" + pid; }
-function wantDone(pid) { try { return localStorage.getItem(wantKey(pid)) === "1"; } catch (e) { return false; } }
+// In-memory only: the feed viewer never touches browser storage.
+const WANTED = new Set();
+function wantDone(pid) { return WANTED.has(pid); }
 function buildWant(card) {
   const pid = card && card.product && WANT_ID.test(String(card.product.id || "")) ? String(card.product.id) : "";
   if (!pid || !feedbackBox()) return null;
@@ -952,7 +953,7 @@ function buildWant(card) {
     btn.textContent = "Enviando…";
     try {
       await sendFeedback({ kind: "approve", blockId: "want:" + pid, choice: "want" });
-      try { localStorage.setItem(wantKey(pid), "1"); } catch (e) {}
+      WANTED.add(pid);
       btn.textContent = "Anotado ✓";
     } catch (err) {
       btn.disabled = false;
