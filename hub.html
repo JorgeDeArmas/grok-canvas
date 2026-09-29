@@ -85,6 +85,13 @@
   button.act { min-height: 36px; padding: 0 12px; border-radius: 10px; border: 1.5px solid var(--accent); background: transparent;
     color: var(--accent); font: 600 13px/33px -apple-system, "Segoe UI", sans-serif; cursor: pointer; white-space: nowrap; }
   button.act:disabled { border-color: var(--line); color: var(--muted); cursor: default; }
+  .mailsub { color: var(--muted); font-size: 13px; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  button.copy { min-height: 36px; padding: 0 12px; border-radius: 10px; border: 1.5px solid var(--line); background: transparent;
+    color: var(--text); font: 600 13px/33px -apple-system, "Segoe UI", sans-serif; cursor: pointer; white-space: nowrap; }
+  /* Phone mail rows: buttons go under the text so brand + subject stay readable. */
+  .it.mob { flex-wrap: wrap; row-gap: 8px; }
+  .it.mob .tx { flex-basis: calc(100% - 20px); }
+  .it.mob .bt { flex-basis: 100%; padding-left: 14px; flex-wrap: wrap; }
   .more { color: var(--muted); font-size: 13px; padding: 6px 4px 10px; }
   .foot { max-width: 1280px; margin: 0 auto; padding: 0 16px calc(24px + var(--safe-b)); color: var(--muted); font-size: 12.5px; }
   .foot p { margin: 4px 0; }
@@ -112,6 +119,13 @@ const $ = (id) => document.getElementById(id);
 const TONES = new Set(["bad", "warn", "good", "info"]);
 const FEEDBACK_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const ID_RE = /^[a-z0-9:_.-]{1,120}$/i;
+// Mail buttons. The Gmail iOS app is opened with a fixed constant, never with scene data; it only opens the
+// app (Google documents no deep link to a specific thread). Scene web links must be https on mail.google.com.
+const GMAIL_IOS_APP = "googlegmail://";
+const MAIL_HOST = "mail.google.com";
+const UA = navigator.userAgent || "";
+const IS_IOS = /iPhone|iPad|iPod/.test(UA) || (/Macintosh/.test(UA) && navigator.maxTouchPoints > 1);
+const IS_PHONE = IS_IOS || /Android/i.test(UA);
 
 function esc(s) {
   return String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -164,11 +178,50 @@ async function sendFeedback(payload) {
 
 let scene = null, sig = "", undoFn = null, toastTimer = 0;
 
+function cleanText(raw, max) {
+  return String(raw ?? "").replace(/[\u0000-\u001F\u007F\u2028\u2029]/g, " ").replace(/\s+/g, " ").trim().slice(0, max);
+}
+function safeMailWeb(raw) {
+  const href = safeHttpsUrl(raw);
+  if (!href) return "";
+  try { return new URL(href).hostname === MAIL_HOST ? href : ""; } catch (e) { return ""; }
+}
+// Returns { sub, buttons } for an item's `mail` object, or null.
+function mailHtml(m, quiet) {
+  if (!m || typeof m !== "object") return null;
+  const web = safeMailWeb(m.web);
+  const search = cleanText(m.search, 200);
+  const subject = cleanText(m.subject, 120);
+  const sub = subject ? `<div class="mailsub">✉︎ ${esc(subject)}</div>` : "";
+  const cls = `go${quiet ? " ghost" : ""}`;
+  let buttons = "";
+  if (IS_IOS) {
+    buttons = `<a class="${cls}" href="${GMAIL_IOS_APP}">Abrir Gmail</a>`;
+  } else if (web) {
+    buttons = `<a class="${cls}" href="${esc(web)}" target="_blank" rel="noopener noreferrer">${IS_PHONE ? "Abrir Gmail" : "Abrir correo"}</a>`;
+  }
+  if (IS_PHONE && search) buttons += `<button class="copy" type="button" data-q="${esc(search)}">Copiar búsqueda</button>`;
+  return { sub, buttons };
+}
+async function copyText(text) {
+  try {
+    if (navigator.clipboard && window.isSecureContext) { await navigator.clipboard.writeText(text); return true; }
+  } catch (e) {}
+  const ta = document.createElement("textarea");
+  ta.value = text; ta.setAttribute("readonly", ""); ta.style.position = "fixed"; ta.style.opacity = "0"; ta.style.top = "0";
+  document.body.appendChild(ta); ta.select(); ta.setSelectionRange(0, text.length);
+  let ok = false;
+  try { ok = document.execCommand("copy"); } catch (e) {}
+  ta.remove();
+  return ok;
+}
+
 function itemHtml(it, done) {
   const id = ID_RE.test(String(it.id || "")) ? String(it.id) : "";
   const tone = TONES.has(it.tone) ? " t-" + it.tone : "";
-  const href = it.href ? safeHttpsUrl(it.href) : "";
-  const link = href ? `<a class="go${it.quiet ? " ghost" : ""}" href="${esc(href)}" target="_blank" rel="noopener noreferrer">${esc(it.hrefLabel || "Abrir")}</a>` : "";
+  const mail = mailHtml(it.mail, it.quiet);
+  const href = !mail && it.href ? safeHttpsUrl(it.href) : "";
+  const link = mail ? mail.buttons : href ? `<a class="go${it.quiet ? " ghost" : ""}" href="${esc(href)}" target="_blank" rel="noopener noreferrer">${esc(it.hrefLabel || "Abrir")}</a>` : "";
   let doneBtn = "";
   if (id && it.done) {
     const label = typeof it.done === "string" ? it.done : "";
@@ -185,7 +238,8 @@ function itemHtml(it, done) {
   const chip = it.chip && it.chip.text ? `<span class="chip${TONES.has(it.chip.tone) ? " c-" + it.chip.tone : ""}">${esc(it.chip.text)}</span>` : "";
   const verb = it.verb ? `<b>${esc(it.verb)}</b>` : "";
   const sep = it.verb && it.title ? " · " : "";
-  return `<div class="it${tone}${it.quiet ? " quiet" : ""}" data-id="${esc(id)}"><span class="bar"></span><div class="tx"><div class="ln">${verb}${sep}${esc(it.title || "")}${chip}</div>${it.sub ? `<div class="sub">${esc(it.sub)}</div>` : ""}</div><div class="bt">${link}${act}${doneBtn}</div></div>`;
+  const mob = mail && IS_PHONE ? " mob" : "";
+  return `<div class="it${tone}${it.quiet ? " quiet" : ""}${mob}" data-id="${esc(id)}"><span class="bar"></span><div class="tx"><div class="ln">${verb}${sep}${esc(it.title || "")}${chip}</div>${it.sub ? `<div class="sub">${esc(it.sub)}</div>` : ""}${mail ? mail.sub : ""}</div><div class="bt">${link}${act}${doneBtn}</div></div>`;
 }
 
 function sectionHtml(s, done) {
@@ -223,6 +277,10 @@ function render(force) {
   $("foot").innerHTML = notes + (hasBox ? `<details class="note"><summary>Nota para Grok</summary><textarea id="note" placeholder="Un cambio, una duda, algo que ya hiciste…"></textarea><p><button class="go" type="button" id="noteSend">Enviar</button> <span id="noteMsg"></span></p></details>` : "");
   document.querySelectorAll("button[data-done]").forEach((btn) => btn.addEventListener("click", () => markDone(btn.dataset.done, btn)));
   document.querySelectorAll("button[data-act]").forEach((btn) => btn.addEventListener("click", () => markAct(btn.dataset.act, btn)));
+  document.querySelectorAll("button[data-q]").forEach((btn) => btn.addEventListener("click", async () => {
+    const ok = await copyText(cleanText(btn.dataset.q, 200));
+    toast(ok ? "Copiado. Ahora abre Gmail, toca Buscar y pega." : "No se pudo copiar.");
+  }));
   const ns = $("noteSend");
   if (ns) ns.addEventListener("click", async () => {
     const area = $("note");
