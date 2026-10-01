@@ -1,5 +1,6 @@
-// Grabación viewer test: phone + desktop render, local ticks, batched text/plain sync (1 request), hostile data.
-// SCENE_FILE=/path/scene.json uses a real (unencrypted, local-only) scene instead of the synthetic fixture.
+// Grabación viewer test (v2, minimal): phone + desktop + dark render, per-video marks saved locally,
+// batched text/plain sync (1 request), undo, tabs, hostile data.
+// SCENE_FILE=/path/scene.json renders a real (local-only) scene instead of the synthetic fixture.
 import assert from "node:assert/strict";
 import { webcrypto } from "node:crypto";
 import fs from "node:fs";
@@ -14,22 +15,15 @@ const html = fs.readFileSync(path.join(ROOT, "grabacion.html"), "utf8");
 assert.match(html, /default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; connect-src 'self' https:\/\/webhook.site;/);
 assert.doesNotMatch(html, /\beval\s*\(|new\s+Function|document\.write|insertAdjacentHTML/);
 
-const today = new Date(); const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-const take = (j, n, r, label, extra = {}) => ({ id: `rec:${j}:s${String(n).padStart(2, "0")}:${r}`, label, file: `shot${String(n).padStart(2, "0")}${r === "m" ? "" : "_" + r.toUpperCase()}`, ...extra });
 const fixture = {
-  type: "filming", version: 1, title: "Grabación", updatedAt: new Date().toISOString(), today: iso(today),
-  stages: ["Guion aprobado", "Pack listo", "Grabado", "Tomas en la Mac", "Editado", "Publicado"],
-  icons: { Sala: "🛋️", Carro: "🚗" }, mailbox: "12345678-1234-1234-1234-123456789abc", ticks: {},
-  products: { p1: { name: "Bálsamo Demo", thumb: "" }, p2: { name: "<img src=x id=pwn1>", thumb: "javascript:alert(1)" } },
-  days: [{ id: iso(today), planTitle: "2 videos", plan: [{ when: "9:00", title: "Sala", body: "Trípode fijo" }] }],
+  type: "filming", version: 2, title: "Grabación", updatedAt: new Date().toISOString(),
+  mailbox: "12345678-1234-1234-1234-123456789abc", ticks: {},
+  products: { p1: { name: "Bálsamo Demo", thumb: "" }, p2: { name: "<img src=x id=pwn1>", thumb: "javascript:alert(1)" }, p3: { name: "Tabla Demo", thumb: "" } },
   videos: [
-    { id: "rec:t001", day: iso(today), place: "Sala", product: "p1", title: "Genérica vs Demo", hook: "¿Cuál le va mejor?", angle: "2 personajes", stage: 1, takeCount: 3,
-      outfit: ["camiseta blanca", "camiseta negra"], props: ["Pote demo", "Trípode"], board: "https://jorgedearmas.github.io/grok-canvas/index.html#b=x&k=y",
-      shots: [{ n: 1, do: "Los dos cerca del lente", takes: [take("t001", 1, "l", "Izquierda · blanca"), take("t001", 1, "r", "Derecha · negra")] },
-              { n: 2, do: "Solo", takes: [take("t001", 2, "m", "Toma"), take("t001", 2, "ins", "Captura", { optional: true })] }] },
-    { id: "rec:t002", day: iso(today), place: "Carro", product: "p2", title: "<b id=pwn2>x</b>", hook: "", stage: 1, takeCount: 1,
-      outfit: [], props: [], board: "javascript:alert(1)", shots: [{ n: 1, do: "x", takes: [take("t002", 1, "m", "Toma")] }] },
-    { id: "BAD ID", day: iso(today), place: "Sala", product: "p1", title: "nope", shots: [] }
+    { id: "rec:t001", day: "2026-10-03", place: "Sala", product: "p1", title: "Genérica vs Demo", stage: 1, ready: true, board: "https://jorgedearmas.github.io/grok-canvas/index.html#b=x&k=y" },
+    { id: "rec:t002", day: "2026-10-03", place: "Carro", product: "p2", title: "<b id=pwn2>x</b>", stage: 1, ready: true, board: "javascript:alert(1)" },
+    { id: "rec:t003", day: "2026-10-03", place: "Carro", product: "p3", title: "Regalo", stage: 0, ready: false, board: "" },
+    { id: "BAD ID", day: "2026-10-03", place: "Sala", product: "p1", title: "nope", ready: true }
   ]
 };
 const scene = process.env.SCENE_FILE ? JSON.parse(fs.readFileSync(process.env.SCENE_FILE, "utf8")) : fixture;
@@ -57,55 +51,59 @@ async function open(name, opts) {
   const page = await ctx.newPage();
   page.on("pageerror", (e) => errors.push(name + " pageerror " + e.message));
   await page.goto(URL_);
-  await page.waitForSelector(".vid, .empty");
+  await page.waitForSelector(".card, .empty");
   return { ctx, page };
 }
+const card = (page, id) => page.locator(`[data-v="${id}"]`);
 
 {
   const { ctx, page } = await open("iphone", { ...devices["iPhone 13"] });
-  await page.screenshot({ path: path.join(SHOTS, "grabacion_iphone.png"), fullPage: !!process.env.FULL });
+  await page.screenshot({ path: path.join(SHOTS, "grabacion_iphone.png"), fullPage: true });
+  const main = await page.locator("main").innerText();
+  assert.doesNotMatch(main, /tomas|shot\d|Props|Ropa|Plan del día|FF-\d{3}|\/workspace|webhook/i, "no noise, no codes");
+  assert.equal(await page.locator(".pbar, .steps, details, [data-tick], [data-mode]").count(), 0, "no take checklist / steps / toggles");
   if (!process.env.SCENE_FILE) {
+    assert.match(main, /Sábado 3 oct/); assert.match(main, /1 video listo para grabar · 0 de 1 grabado · 2 en camino/);
     assert.equal(await page.locator("#pwn1, #pwn2").count(), 0, "scene markup must not render");
-    assert.equal(await page.locator('a[href^="javascript"]').count(), 0);
-    assert.equal(await page.locator('[data-v="BAD ID"]').count(), 0);
-    assert.equal(await page.locator('img[src^="javascript"]').count(), 0);
-    assert.doesNotMatch(await page.locator("main").innerText(), /FF-\d{3}|\/workspace|webhook/);
-    // tick one take -> instant local state, one batched text/plain POST
-    await page.locator('[data-tick="rec:t001:s01:l"]').click();
-    assert.equal(await page.locator('[data-tick="rec:t001:s01:l"]').getAttribute("aria-checked"), "true");
+    assert.equal(await page.locator('a[href^="javascript"], img[src^="javascript"]').count(), 0);
+    assert.equal(await card(page, "BAD ID").count(), 0);
+    assert.equal(await card(page, "rec:t002").locator("a.btn").count(), 0, "hostile board link -> no button");
+    assert.match(await card(page, "rec:t003").innerText(), /Board en camino/);
+    assert.equal(await card(page, "rec:t003").locator("button").count(), 0);
+    assert.equal(await card(page, "rec:t001").locator("a.btn").getAttribute("href"), "https://jorgedearmas.github.io/grok-canvas/index.html#b=x&k=y");
+    // mark -> moves to «Grabados», one text/plain POST
+    await card(page, "rec:t001").locator("[data-mark]").click();
+    assert.equal(await card(page, "rec:t001").count(), 0);
     await page.waitForTimeout(400);
-    assert.equal(posts.length, 1, "first tick syncs once");
-    assert.match(posts[0].ct, /^text\/plain/); assert.equal(posts[0].method, "POST");
-    const body = JSON.parse(posts[0].body); assert.equal(body.kind, "ticks"); assert.deepEqual(Object.keys(body.set), ["rec:t001:s01:l"]);
-    // second tick within 10 min: no new request, shows pending + «Enviar ahora»
-    await page.locator('[data-tick="rec:t001:s01:r"]').click();
-    await page.waitForTimeout(300);
-    assert.equal(posts.length, 1, "throttled");
-    assert.match(await page.locator("#sync").innerText(), /1 en el teléfono/);
-    await page.locator("#sendNow").click(); await page.waitForTimeout(300);
-    assert.equal(posts.length, 2); assert.deepEqual(Object.keys(JSON.parse(posts[1].body).set), ["rec:t001:s01:r"]);
-    // persists across reload
-    await page.reload(); await page.waitForSelector(".vid");
-    assert.equal(await page.locator('[data-tick="rec:t001:s01:l"]').getAttribute("aria-checked"), "true");
-    // «Marcar todo grabado» -> video leaves «Qué me falta hoy»; undo brings it back
-    await page.locator('[data-all="rec:t001"]').click();
-    assert.equal(await page.locator('[data-v="rec:t001"]').count(), 0);
+    assert.equal(posts.length, 1); assert.match(posts[0].ct, /^text\/plain/);
+    assert.deepEqual(Object.keys(JSON.parse(posts[0].body).set), ["rec:t001"]);
+    // undo brings it back (second change is throttled -> «Enviar»)
     await page.locator("#undo").click();
-    assert.equal(await page.locator('[data-v="rec:t001"]').count(), 1);
-    // Semana + Hecho filter
-    await page.locator('[data-all="rec:t001"]').click();
-    await page.locator('.seg [data-view="semana"]').click(); await page.locator('#filters [data-f="done"]').click();
-    assert.equal(await page.locator('[data-v="rec:t001"]').count(), 1);
-    assert.equal(await page.locator('[data-v="rec:t002"]').count(), 0);
+    assert.equal(await card(page, "rec:t001").count(), 1);
+    await page.waitForTimeout(300); assert.equal(posts.length, 1, "throttled");
+    assert.match(await page.locator("#sync").innerText(), /1 sin enviar/);
+    await page.locator("#sendNow").click(); await page.waitForTimeout(300);
+    assert.equal(posts.length, 2); assert.equal(JSON.parse(posts[1].body).set["rec:t001"][0], 0);
+    // mark again, reload: persisted, visible under «Grabados»
+    await card(page, "rec:t001").locator("[data-mark]").click();
+    await page.reload(); await page.waitForSelector(".card");
+    assert.equal(await card(page, "rec:t001").count(), 0);
+    await page.locator('.seg [data-view="done"]').click();
+    assert.equal(await card(page, "rec:t001").count(), 1);
+    assert.match(await page.locator("main").innerText(), /1 grabado/);
   }
   await ctx.close();
 }
 {
-  const { ctx, page } = await open("desktop", { viewport: { width: 1280, height: 900 } });
-  await page.locator('.seg [data-view="semana"]').click();
-  await page.screenshot({ path: path.join(SHOTS, "grabacion_desktop.png"), fullPage: !!process.env.FULL });
+  const { ctx, page } = await open("iphone-dark", { ...devices["iPhone 13"], colorScheme: "dark" });
+  await page.screenshot({ path: path.join(SHOTS, "grabacion_iphone_dark.png") });
+  await ctx.close();
+}
+{
+  const { ctx, page } = await open("desktop", { viewport: { width: 1280, height: 800 } });
+  await page.screenshot({ path: path.join(SHOTS, "grabacion_desktop.png") });
   await ctx.close();
 }
 await browser.close();
 assert.deepEqual(errors, []);
-console.log("ok grabacion", posts.length, "posts");
+console.log("ok grabacion v2", posts.length, "posts");
