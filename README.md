@@ -23,3 +23,16 @@ Item `chip: {text, tone}` adds a small stage pill. Item `act: {id, label, doneLa
 
 ### feed.html: «Lo quiero»
 When the link has a mailbox (`f`) and the card has a numeric `product.id`, each card shows «Lo quiero». Tapping it POSTs `{kind:"approve", blockId:"want:<product_id>", choice:"want"}` and remembers the tap locally (`feed-want:<id>`). The bot treats it as untrusted data and only adds that product to Jorge's tracker. Nothing is sent or bought.
+
+## grabacion.html
+
+"Grabación" view for an encrypted `filming` scene (`type: "filming"`): every filming board Jorge has to film, grouped by shoot day → place (sala/carro/cocina/baño…) → product → video. Phone-first, also works on desktop. Same origin rules as hub.html (only `jorgedearmas.github.io`, no githack). CSP: `img-src data:` (product thumbs are small inline JPEGs inside the encrypted scene) and `connect-src 'self' https://webhook.site`.
+
+https://jorgedearmas.github.io/grok-canvas/grabacion.html#b=<blob>&k=<key>
+
+Scene: `title`, `updatedAt`, `stages[6]`, `icons{place: emoji}`, `products{key: {name, thumb}}` (thumb must be `data:image/jpeg;base64,…`), `days[] {id: YYYY-MM-DD|sin-fecha, planTitle, plan[] {when, title, body}}`, `videos[] {id: rec:<job>, day, place, product, title, hook, angle, stage 0-5, takeCount, outfit[], props[], board (https, host jorgedearmas.github.io, path /grok-canvas/ only), mac?, shots[] {n, do, line, takes[] {id: rec:<job>:sNN:<role>, label, side, who, wardrobe, group, file, optional?}}}`, `ticks{id: [0|1, ms]}`, `mailbox` (webhook.site UUID; preferred over `&f=` so the link survives mailbox rotation).
+
+Views: «Qué falta hoy» (today, or the next shoot day; pending videos with takes open), «Semana», «Todo», with Pendiente/Hecho/Todo filters. Takes can be listed «Por ropa» (matches how the day is filmed: all takes of one outfit first) or «Por shot». Progress bars per week, day and product.
+
+Ticks are saved in localStorage instantly (`rec-ticks:<blob>`, newest timestamp wins against the scene's `ticks`). They are sent as ONE `text/plain` POST `{kind:"ticks", v:1, set:{id:[0|1, ms]}}` (no CORS preflight) at most every 10 minutes, or when Jorge taps «Enviar ahora», because a free webhook.site URL only takes ~100 requests. The bot treats it as untrusted data: ids must match `^rec:[a-z0-9]{2,24}(:s\d{2}(:[a-z0-9]{1,8})?)?$` and the only effect is marking filmed status. Test: `SHOTS_DIR=/tmp/shots npm run test:grabacion` (`SCENE_FILE=<local scene.json>` to render real data locally; never commit real scenes).
+
