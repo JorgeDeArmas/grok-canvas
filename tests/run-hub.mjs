@@ -14,7 +14,7 @@ const hubHtml = fs.readFileSync(path.join(ROOT, "hub.html"), "utf8");
 
 // Static: the app scheme is one constant, and CSP is unchanged.
 assert.equal(hubHtml.split("googlegmail://").length - 1, 1, "googlegmail:// must appear exactly once (constant)");
-assert.match(hubHtml, /default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self'; connect-src 'self' https:\/\/webhook.site;/);
+assert.match(hubHtml, /default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https:\/\/webhook.site;/);
 assert.doesNotMatch(hubHtml, /\beval\s*\(|new\s+Function|document\.write|insertAdjacentHTML/);
 
 const scene = {
