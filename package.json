@@ -4,7 +4,8 @@
   "scripts": {
     "test:feed": "node tests/run-feed.mjs",
     "test:hub": "node tests/run-hub.mjs",
-    "test:grabacion": "node tests/run-grabacion.mjs"
+    "test:grabacion": "node tests/run-grabacion.mjs",
+    "test:hub-scripts": "node tests/run-hub-scripts.mjs"
   },
   "devDependencies": {
     "playwright": "^1.55.1"

@@ -4,106 +4,180 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="referrer" content="no-referrer">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self'; connect-src 'self' https://webhook.site; base-uri 'none'; form-action 'none'; object-src 'none'; frame-ancestors 'none'">
-<meta name="theme-color" content="#f2f2f7">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://webhook.site; base-uri 'none'; form-action 'none'; object-src 'none'; frame-ancestors 'none'">
+<meta name="theme-color" content="#f2f2f7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+<meta name="color-scheme" content="light dark">
 <title>Tu día</title>
 <style>
   :root {
     color-scheme: light dark;
-    --bg: #f2f2f7; --card: #fff; --text: #1c1c1e; --muted: #6e6e73;
-    --line: rgba(60,60,67,.14); --accent: #007aff; --good: #34c759;
-    --bad: #ff3b30; --warn: #ff9500; --info: #5e5ce6; --chip: #e9e9ee;
+    --bg: #f2f2f7; --card: #fff; --card2: #f7f7fa; --text: #1c1c1e; --muted: #6e6e73;
+    --line: rgba(60,60,67,.14); --accent: #007aff; --accent-ink: #fff; --good: #248a3d; --good-bg: #34c759;
+    --bad: #d70015; --warn: #c93400; --warn-bg: #ff9500; --info: #5e5ce6; --chip: #e9e9ee;
+    --shadow: 0 1px 2px rgba(0,0,0,.05), 0 6px 20px rgba(0,0,0,.06);
     --safe-t: env(safe-area-inset-top, 0px); --safe-b: env(safe-area-inset-bottom, 0px);
   }
   @media (prefers-color-scheme: dark) {
-    :root { --bg: #000; --card: #1c1c1e; --text: #f5f5f7; --muted: #98989d;
-      --line: rgba(255,255,255,.10); --accent: #0a84ff; --chip: #2c2c2e; }
+    :root { --bg: #000; --card: #1c1c1e; --card2: #2c2c2e; --text: #f5f5f7; --muted: #a1a1a6;
+      --line: rgba(255,255,255,.12); --accent: #0a84ff; --good: #30d158; --good-bg: #30d158; --bad: #ff453a;
+      --warn: #ff9f0a; --warn-bg: #ff9f0a; --info: #7d7aff; --chip: #3a3a3c; --shadow: none; }
   }
-  * { box-sizing: border-box; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  [hidden] { display: none !important; }
+  body.lock .toast { bottom: calc(104px + var(--safe-b)); }
   html, body { margin: 0; }
-  body { font: 16px/1.35 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+  body { font: 16px/1.4 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
     background: var(--bg); color: var(--text); -webkit-text-size-adjust: 100%; }
+  body.lock { overflow: hidden; }
+  button, a { font: inherit; }
   header { position: sticky; top: 0; z-index: 3; padding: calc(10px + var(--safe-t)) 16px 10px;
     background: color-mix(in srgb, var(--bg) 88%, transparent);
     backdrop-filter: saturate(180%) blur(16px); -webkit-backdrop-filter: saturate(180%) blur(16px);
     border-bottom: 1px solid var(--line); }
-  .top { max-width: 1280px; margin: 0 auto; }
-  .hrow { display: flex; align-items: baseline; justify-content: space-between; gap: 4px 12px; flex-wrap: wrap; }
-  h1 { font-size: 24px; margin: 0; letter-spacing: -.02em; }
+  .top { max-width: 1100px; margin: 0 auto; }
+  .hrow { display: flex; align-items: baseline; justify-content: space-between; gap: 4px 12px; }
+  h1 { font-size: 26px; margin: 0; letter-spacing: -.02em; }
   .meta { color: var(--muted); font-size: 13px; white-space: nowrap; }
-  .counters { display: grid; grid-template-columns: repeat(auto-fit, minmax(58px, 1fr)); gap: 6px; margin-top: 10px; }
-  .ctr { background: var(--card); border-radius: 12px; padding: 6px 10px; min-width: 0; }
-  .ctr b { display: block; font-size: 20px; letter-spacing: -.02em; }
+  .counters { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-top: 10px; }
+  .ctr { appearance: none; border: 0; text-align: left; background: var(--card); color: var(--text); border-radius: 14px;
+    padding: 8px 10px; min-height: 56px; cursor: pointer; box-shadow: var(--shadow); }
+  .ctr b { display: block; font-size: 22px; line-height: 1.1; letter-spacing: -.02em; }
   .ctr span { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
+  .ctr.hot b { color: var(--accent); }
   .ctr.z b { color: var(--muted); }
-  main { max-width: 1280px; margin: 0 auto; padding: 12px 12px 16px;
-    display: grid; gap: 12px; grid-template-columns: 1fr; align-items: start; }
-  .rest { display: grid; gap: 12px; min-width: 0; }
-  @media (min-width: 860px) {
-    main { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); padding: 16px 20px 20px; gap: 16px; }
-    .rest { gap: 16px; }
-    h1 { font-size: 28px; }
-  }
-  @media (min-width: 1200px) {
-    main { grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); }
-    .rest { display: block; column-count: 2; column-gap: 16px; }
-    .rest section { break-inside: avoid; margin-bottom: 16px; }
-  }
-  section { background: var(--card); border-radius: 16px; padding: 12px 12px 6px; min-width: 0; }
-  .quiet .ln { color: var(--muted); }
-  a.go.ghost { background: var(--chip); color: var(--text); }
-  section h2 { font-size: 15px; margin: 2px 4px 8px; display: flex; justify-content: space-between; align-items: baseline; }
-  section h2 i { font-style: normal; color: var(--muted); font-weight: 500; font-size: 13px; }
-  section.lead h2 { font-size: 18px; }
-  .grp { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; margin: 10px 4px 2px; }
-  .it { display: flex; align-items: center; gap: 10px; padding: 10px 4px; border-top: 1px solid var(--line);
-    transition: opacity .25s, transform .25s; }
+  .ctr:active { transform: scale(.97); }
+  main { max-width: 1100px; margin: 0 auto; padding: 12px 12px 8px; display: grid; gap: 14px; grid-template-columns: 1fr; align-items: start; }
+  .rest { display: grid; gap: 14px; min-width: 0; }
+  @media (min-width: 860px) { main { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); padding: 16px 20px; } }
+  /* Lo próximo */
+  .next { background: var(--card); border-radius: 20px; padding: 14px; box-shadow: var(--shadow); border: 2px solid var(--accent); }
+  .next.done { border-color: var(--good-bg); }
+  .next .lbl { font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--accent); margin-bottom: 8px; }
+  .next.done .lbl { color: var(--good); }
+  .next .row { display: flex; gap: 12px; align-items: center; }
+  .next .h { font-size: 19px; font-weight: 700; line-height: 1.25; }
+  .next .s { color: var(--muted); font-size: 14px; margin-top: 2px; }
+  .next .cta { margin-top: 12px; display: flex; gap: 8px; }
+  .next .cta > * { flex: 1; }
+  section { background: var(--card); border-radius: 18px; padding: 10px 10px 4px; min-width: 0; box-shadow: var(--shadow); scroll-margin-top: 150px; }
+  section h2 { font-size: 17px; margin: 4px 6px 6px; display: flex; justify-content: space-between; align-items: baseline; }
+  section h2 i { font-style: normal; color: var(--muted); font-weight: 500; font-size: 14px; }
+  .grp { font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin: 12px 6px 2px; scroll-margin-top: 150px; }
+  .flash { animation: flash 1.2s ease; border-radius: 10px; }
+  @keyframes flash { 0%,40% { background: color-mix(in srgb, var(--accent) 22%, transparent); } 100% { background: transparent; } }
+  .it { display: flex; align-items: center; gap: 12px; padding: 10px 6px; min-height: 64px; border-top: 1px solid var(--line);
+    border-radius: 12px; cursor: pointer; transition: opacity .25s, transform .25s, background .15s; }
   .grp + .it, h2 + .it { border-top: 0; }
+  .it:active { background: var(--card2); }
   .it.gone { opacity: 0; transform: translateX(24px); }
-  .bar { width: 4px; align-self: stretch; border-radius: 4px; background: var(--chip); flex: none; }
-  .t-bad .bar { background: var(--bad); } .t-warn .bar { background: var(--warn); }
-  .t-good .bar { background: var(--good); } .t-info .bar { background: var(--info); }
+  .th { width: 48px; height: 48px; border-radius: 12px; flex: none; object-fit: cover; background: var(--chip); display: grid; place-items: center;
+    font-size: 21px; overflow: hidden; }
+  .next .th { width: 60px; height: 60px; border-radius: 14px; }
+  .t-warn .th.ic { background: color-mix(in srgb, var(--warn-bg) 22%, transparent); }
+  .t-good .th.ic { background: color-mix(in srgb, var(--good-bg) 22%, transparent); }
+  .t-bad .th.ic { background: color-mix(in srgb, var(--bad) 20%, transparent); }
+  .t-info .th.ic { background: color-mix(in srgb, var(--info) 20%, transparent); }
   .tx { flex: 1; min-width: 0; }
-  .ln { font-size: 15.5px; }
+  .ln { font-size: 16px; line-height: 1.3; }
   .ln b { font-weight: 650; }
-  section.lead .ln { font-size: 16.5px; }
-  .sub { color: var(--muted); font-size: 13px; margin-top: 2px; }
-  .bt { display: flex; gap: 6px; flex: none; }
-  a.go, button.go { min-height: 36px; padding: 0 12px; border-radius: 10px; border: 0; background: var(--accent);
-    color: #fff; font: 600 14px/36px -apple-system, "Segoe UI", sans-serif; text-decoration: none; cursor: pointer; white-space: nowrap; }
-  button.done { width: 36px; height: 36px; border-radius: 18px; border: 1.5px solid var(--line); background: transparent;
-    color: var(--good); font-size: 17px; cursor: pointer; flex: none; }
-  button.done.txt { width: auto; padding: 0 12px; border-radius: 10px; font: 600 13px/33px -apple-system, "Segoe UI", sans-serif; }
-  @media (hover: hover) { button.done:hover { border-color: var(--good); background: color-mix(in srgb, var(--good) 12%, transparent); } }
-  .empty { color: var(--muted); font-size: 14px; padding: 10px 4px 12px; }
-  .chip { display: inline-block; vertical-align: 1px; margin-left: 6px; padding: 1px 8px; border-radius: 999px; font-size: 12px; font-weight: 600;
+  .quiet .ln { color: var(--muted); }
+  .sub { color: var(--muted); font-size: 13.5px; margin-top: 2px; }
+  .bt { display: flex; gap: 6px; flex: none; align-items: center; }
+  .chev { color: var(--muted); font-size: 22px; padding: 0 2px 0 4px; flex: none; }
+  .go, .ghost, .act, .copy, .done { appearance: none; min-height: 44px; padding: 0 14px; border-radius: 12px; border: 0; font-weight: 600; font-size: 15px;
+    display: inline-flex; align-items: center; justify-content: center; text-decoration: none; cursor: pointer; white-space: nowrap; }
+  .go { background: var(--accent); color: var(--accent-ink); }
+  .ghost, .copy { background: var(--chip); color: var(--text); }
+  .act { background: transparent; color: var(--accent); box-shadow: inset 0 0 0 1.5px var(--accent); }
+  .act:disabled { box-shadow: inset 0 0 0 1.5px var(--line); color: var(--muted); cursor: default; }
+  .done { background: transparent; color: var(--good); box-shadow: inset 0 0 0 1.5px var(--line); }
+  .done.round { width: 44px; padding: 0; border-radius: 22px; font-size: 18px; }
+  .big { min-height: 52px; font-size: 17px; border-radius: 14px; width: 100%; }
+  .chip { display: inline-block; vertical-align: 1px; margin-left: 6px; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 650;
     background: var(--chip); color: var(--text); white-space: nowrap; }
-  .chip.c-warn { background: color-mix(in srgb, var(--warn) 22%, transparent); }
-  .chip.c-good { background: color-mix(in srgb, var(--good) 22%, transparent); }
+  .chip.c-warn { background: color-mix(in srgb, var(--warn-bg) 24%, transparent); }
+  .chip.c-good { background: color-mix(in srgb, var(--good-bg) 24%, transparent); }
   .chip.c-bad { background: color-mix(in srgb, var(--bad) 22%, transparent); }
-  .chip.c-info { background: color-mix(in srgb, var(--info) 20%, transparent); }
-  button.act { min-height: 36px; padding: 0 12px; border-radius: 10px; border: 1.5px solid var(--accent); background: transparent;
-    color: var(--accent); font: 600 13px/33px -apple-system, "Segoe UI", sans-serif; cursor: pointer; white-space: nowrap; }
-  button.act:disabled { border-color: var(--line); color: var(--muted); cursor: default; }
+  .chip.c-info { background: color-mix(in srgb, var(--info) 22%, transparent); }
   .mailsub { color: var(--muted); font-size: 13px; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  button.copy { min-height: 36px; padding: 0 12px; border-radius: 10px; border: 1.5px solid var(--line); background: transparent;
-    color: var(--text); font: 600 13px/33px -apple-system, "Segoe UI", sans-serif; cursor: pointer; white-space: nowrap; }
-  /* Phone mail rows: buttons go under the text so brand + subject stay readable. */
   .it.mob { flex-wrap: wrap; row-gap: 8px; }
-  .it.mob .tx { flex-basis: calc(100% - 20px); }
-  .it.mob .bt { flex-basis: 100%; padding-left: 14px; flex-wrap: wrap; }
-  .more { color: var(--muted); font-size: 13px; padding: 6px 4px 10px; }
-  .foot { max-width: 1280px; margin: 0 auto; padding: 0 16px calc(24px + var(--safe-b)); color: var(--muted); font-size: 12.5px; }
+  .it.mob .tx { flex-basis: calc(100% - 60px); }
+  .it.mob .bt { flex-basis: 100%; padding-left: 60px; flex-wrap: wrap; }
+  .empty { color: var(--muted); font-size: 15px; padding: 14px 6px 16px; }
+  .more { color: var(--muted); font-size: 13px; padding: 6px 6px 10px; }
+  .foot { max-width: 1100px; margin: 0 auto; padding: 4px 16px calc(28px + var(--safe-b)); color: var(--muted); font-size: 13px; }
   .foot p { margin: 4px 0; }
-  details.note { margin-top: 10px; background: var(--card); border-radius: 14px; padding: 4px 12px; }
-  details.note summary { min-height: 40px; display: flex; align-items: center; font-weight: 600; color: var(--text); cursor: pointer; }
-  textarea { width: 100%; min-height: 90px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg);
+  details.note { margin-top: 12px; background: var(--card); border-radius: 16px; padding: 4px 12px; }
+  details.note summary { min-height: 48px; display: flex; align-items: center; font-weight: 600; color: var(--text); cursor: pointer; }
+  textarea { width: 100%; min-height: 90px; border-radius: 12px; border: 1px solid var(--line); background: var(--bg);
     color: var(--text); font: 16px/1.4 -apple-system, "Segoe UI", sans-serif; padding: 10px; }
-  .toast { position: fixed; left: 50%; bottom: calc(18px + var(--safe-b)); transform: translateX(-50%); z-index: 5;
-    background: #1c1c1e; color: #fff; border-radius: 12px; padding: 10px 14px; font-size: 14px; display: none; gap: 14px; align-items: center; box-shadow: 0 4px 18px rgba(0,0,0,.25); }
+  .toast { position: fixed; left: 50%; bottom: calc(18px + var(--safe-b)); transform: translateX(-50%); z-index: 20; width: max-content; max-width: calc(100vw - 24px);
+    background: #2c2c2e; color: #fff; border-radius: 14px; padding: 6px 6px 6px 16px; font-size: 15px; display: none; gap: 10px; align-items: center; box-shadow: 0 6px 24px rgba(0,0,0,.35); }
   .toast.on { display: flex; }
-  .toast button { background: transparent; border: 0; color: #64d2ff; font: 600 14px -apple-system, sans-serif; cursor: pointer; }
+  .toast button { background: transparent; border: 0; color: #64d2ff; font-weight: 650; min-height: 44px; padding: 0 12px; cursor: pointer; }
   .status { color: var(--muted); padding: 30px 16px; text-align: center; }
+  /* Sheet */
+  .scrim { position: fixed; inset: 0; z-index: 10; background: rgba(0,0,0,.42); opacity: 0; transition: opacity .2s; }
+  .scrim.on { opacity: 1; }
+  .sheet { position: fixed; z-index: 11; left: 0; right: 0; bottom: 0; max-height: calc(100dvh - 24px - var(--safe-t)); height: calc(100dvh - 24px - var(--safe-t));
+    background: var(--bg); border-radius: 20px 20px 0 0; display: flex; flex-direction: column; transform: translateY(100%); transition: transform .25s ease; }
+  .sheet.short { height: auto; }
+  .sheet.on { transform: none; }
+  @media (min-width: 760px) { .sheet { left: 50%; width: 680px; margin-left: -340px; bottom: 12px; border-radius: 20px; max-height: calc(100dvh - 40px); } }
+  .sh-h { padding: 8px 12px 10px; border-bottom: 1px solid var(--line); flex: none; }
+  .grab { width: 40px; height: 5px; border-radius: 3px; background: var(--line); margin: 0 auto 8px; }
+  .sh-top { display: flex; align-items: center; gap: 12px; }
+  .sh-top .th { width: 44px; height: 44px; }
+  .sh-t { flex: 1; min-width: 0; }
+  .sh-t b { display: block; font-size: 17px; line-height: 1.25; }
+  .sh-t span { color: var(--muted); font-size: 13.5px; }
+  .x { appearance: none; border: 0; width: 44px; height: 44px; border-radius: 22px; background: var(--chip); color: var(--text); font-size: 20px; cursor: pointer; flex: none; }
+  .tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; margin-top: 10px; background: var(--chip); padding: 3px; border-radius: 12px; }
+  .tab { appearance: none; border: 0; background: transparent; color: var(--text); min-height: 44px; border-radius: 10px; font-weight: 650; font-size: 16px; cursor: pointer; }
+  .tab[aria-selected="true"] { background: var(--card); box-shadow: 0 1px 3px rgba(0,0,0,.15); }
+  .tab small { font-size: 12px; font-weight: 600; color: var(--muted); margin-left: 4px; }
+  .tab .pk { color: var(--good); }
+  .sh-b { flex: 1; min-height: 0; overflow: hidden; display: flex; }
+  .panes { flex: 1; min-height: 0; display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; }
+  .panes::-webkit-scrollbar { display: none; }
+  .pane { flex: 0 0 100%; scroll-snap-align: start; overflow-y: auto; padding: 12px 14px 20px; overscroll-behavior: contain; }
+  .badges { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 6px; }
+  .badge { font-size: 12.5px; font-weight: 700; padding: 4px 10px; border-radius: 999px; background: var(--chip); }
+  .badge.rec { background: color-mix(in srgb, var(--warn-bg) 26%, transparent); }
+  .badge.c-warn { background: color-mix(in srgb, var(--warn-bg) 24%, transparent); } .badge.c-good { background: color-mix(in srgb, var(--good-bg) 24%, transparent); }
+  .badge.c-info { background: color-mix(in srgb, var(--info) 22%, transparent); } .badge.c-bad { background: color-mix(in srgb, var(--bad) 22%, transparent); }
+  .badge.pkd { background: color-mix(in srgb, var(--good-bg) 26%, transparent); }
+  .pane h3 { font-size: 21px; margin: 2px 0 10px; line-height: 1.25; }
+  .facts { background: var(--card); border-radius: 14px; padding: 2px 12px; margin-bottom: 12px; }
+  .fact { display: flex; gap: 10px; padding: 9px 0; border-top: 1px solid var(--line); font-size: 14.5px; }
+  .fact:first-child { border-top: 0; }
+  .fact .k { color: var(--muted); width: 92px; flex: none; }
+  .fact .v { flex: 1; min-width: 0; }
+  .fact a { color: var(--accent); font-weight: 600; text-decoration: none; display: inline-block; padding: 6px 0; min-height: 44px; line-height: 32px; }
+  .fact .note2 { display: block; color: var(--muted); font-size: 13px; margin-top: 2px; }
+  .hook { background: var(--card); border-radius: 14px; padding: 12px; margin-bottom: 14px; border-left: 4px solid var(--warn-bg); }
+  .hook .k, .beat .k { font-size: 11.5px; font-weight: 700; letter-spacing: .06em; color: var(--muted); text-transform: uppercase; }
+  .hook p { font-size: 18px; font-weight: 650; margin: 4px 0 6px; line-height: 1.35; }
+  .ost { display: inline-block; background: #111; color: #fff; font-weight: 800; font-size: 12.5px; letter-spacing: .02em; padding: 3px 8px; border-radius: 6px; }
+  @media (prefers-color-scheme: dark) { .ost { background: #f5f5f7; color: #111; } }
+  .h4 { font-size: 13px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin: 4px 2px 8px; }
+  .beat { background: var(--card); border-radius: 14px; padding: 10px 12px; margin-bottom: 8px; }
+  .beat .tm { font-variant-numeric: tabular-nums; font-size: 12.5px; font-weight: 700; color: var(--accent); }
+  .beat .vo { font-size: 16px; margin: 4px 0 8px; line-height: 1.4; }
+  .beat .ac { font-size: 14px; color: var(--text); margin: 2px 0 6px; }
+  details.more2 { background: var(--card); border-radius: 14px; padding: 0 12px; margin-top: 10px; }
+  details.more2 summary { min-height: 48px; display: flex; align-items: center; font-weight: 650; cursor: pointer; }
+  details.more2 p { margin: 0 0 12px; font-size: 15px; line-height: 1.45; }
+  .sh-f { flex: none; padding: 10px 14px calc(12px + var(--safe-b)); border-top: 1px solid var(--line); background: var(--bg); }
+  .sh-f .msg { font-size: 14px; color: var(--muted); text-align: center; margin-bottom: 8px; }
+  .sh-f .msg.ok { color: var(--good); font-weight: 650; }
+  .sh-f .row2 { display: flex; gap: 8px; }
+  .sh-f .row2 > * { flex: 1; }
+  .det { padding: 12px 14px 8px; }
+  .det .facts { margin-bottom: 12px; }
+  .det .acts { display: grid; gap: 8px; }
+  .det .acts > * { width: 100%; min-height: 50px; font-size: 16px; }
 </style>
 </head>
 <body>
@@ -113,12 +187,18 @@
 </div></header>
 <main id="main"></main>
 <div class="foot" id="foot"></div>
+<div class="scrim" id="scrim" hidden></div>
+<div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="shTitle" hidden></div>
 <div class="toast" id="toast" role="status"><span id="toastMsg"></span><button type="button" id="undo">Deshacer</button></div>
 <script>
 const $ = (id) => document.getElementById(id);
 const TONES = new Set(["bad", "warn", "good", "info"]);
 const FEEDBACK_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const ID_RE = /^[a-z0-9:_.-]{1,120}$/i;
+const JOB_RE = /^ff-\d{3}$/;
+const LETTERS = ["A", "B", "C"];
+const THUMB_RE = /^data:image\/jpeg;base64,[A-Za-z0-9+/]+={0,2}$/;
+const DONOR_RE = /^https:\/\/www\.tiktok\.com\/@[A-Za-z0-9._]+\/video\/\d+$/;
 // Mail buttons. The Gmail iOS app is opened with a fixed constant, never with scene data; it only opens the
 // app (Google documents no deep link to a specific thread). Scene web links must be https on mail.google.com.
 const GMAIL_IOS_APP = "googlegmail://";
@@ -126,6 +206,10 @@ const MAIL_HOST = "mail.google.com";
 const UA = navigator.userAgent || "";
 const IS_IOS = /iPhone|iPad|iPod/.test(UA) || (/Macintosh/.test(UA) && navigator.maxTouchPoints > 1);
 const IS_PHONE = IS_IOS || /Android/i.test(UA);
+const ICONS = { "Elegir guion": "✍️", "Aprobar guiones": "✍️", "Publicar": "📲", "Grabar": "🎬", "Grabación": "🎬", "Preparar grabación": "🎒",
+  "Elegir productos": "🛍️", "Decidir oferta": "🤝", "Enviar respuesta": "✉️", "Entregar": "📦", "Cerrado": "✅", "Negociando": "💬",
+  "Email rebotó": "⚠️", "¿Llegó?": "📦", "Completar tomas": "🎥", "Pasar tomas a la Mac": "💻", "Armando pack": "🧩", "Editando": "✂️",
+  "Escribiendo guiones": "📝", "Dar GO a las fotos": "🖼️", "Content gap": "🔎", "Identificando producto": "🔎", "Haciendo video": "🎞️" };
 
 function esc(s) {
   return String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -150,37 +234,48 @@ async function decryptScene(blob, keyText) {
   const plain = await crypto.subtle.decrypt({ name: "AES-GCM", iv: b64ToBytes(blob.iv) }, key, b64ToBytes(blob.ct));
   return JSON.parse(new TextDecoder().decode(plain));
 }
+function cleanText(raw, max) {
+  return String(raw ?? "").replace(/[\u0000-\u001F\u007F\u2028\u2029]/g, " ").replace(/\s+/g, " ").trim().slice(0, max);
+}
 
-// Local "done" memory so a tapped item disappears right away on this device.
-const DONE_TTL = 3 * 24 * 3600 * 1000;
-function doneKey() { return "hub-done:" + secret().b.replace(/[^a-z0-9]/gi, ""); }
+// Local memory (per hub link) so taps show instantly on this device.
+const DONE_TTL = 3 * 24 * 3600 * 1000, PICK_TTL = 7 * 24 * 3600 * 1000;
+function storeKey(kind) { return "hub-" + kind + ":" + secret().b.replace(/[^a-z0-9]/gi, ""); }
 function loadDone() {
   try {
-    const raw = JSON.parse(localStorage.getItem(doneKey()) || "{}");
+    const raw = JSON.parse(localStorage.getItem(storeKey("done")) || "{}");
     const now = Date.now(); const out = {};
     for (const [k, v] of Object.entries(raw)) if (ID_RE.test(k) && typeof v === "number" && now - v < DONE_TTL) out[k] = v;
     return out;
   } catch (e) { return {}; }
 }
-function saveDone(map) { try { localStorage.setItem(doneKey(), JSON.stringify(map)); } catch (e) {} }
+function saveDone(map) { try { localStorage.setItem(storeKey("done"), JSON.stringify(map)); } catch (e) {} }
+function loadPicks() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(storeKey("picks")) || "{}");
+    const now = Date.now(); const out = {};
+    for (const [k, v] of Object.entries(raw)) {
+      if (JOB_RE.test(k) && v && (LETTERS.includes(v.letter) || v.letter === "") && typeof v.at === "number" && now - v.at < PICK_TTL) out[k] = { letter: v.letter, at: v.at, sent: !!v.sent };
+    }
+    return out;
+  } catch (e) { return {}; }
+}
+function savePicks(map) { try { localStorage.setItem(storeKey("picks"), JSON.stringify(map)); } catch (e) {} }
 
 async function sendFeedback(payload) {
   const box = String(secret().f || "").trim();
   if (!FEEDBACK_UUID.test(box)) throw new Error("sin buzón");
   const endpoint = new URL("https://webhook.site/" + box);
   if (endpoint.origin !== "https://webhook.site" || endpoint.pathname !== "/" + box) throw new Error("sin buzón");
-  const body = JSON.stringify(Object.assign({}, payload, { at: new Date().toISOString() }));
+  const body = JSON.stringify(Object.assign({ at: new Date().toISOString() }, payload));
   if (body.length > 60000) throw new Error("grande");
   const res = await fetch(endpoint.href, { method: "POST", headers: { "Content-Type": "application/json" }, body,
     redirect: "error", referrerPolicy: "no-referrer", credentials: "omit" });
   if (!res.ok) throw new Error(String(res.status));
 }
 
-let scene = null, sig = "", undoFn = null, toastTimer = 0;
+let scene = null, sig = "", undoFn = null, toastTimer = 0, sheetState = null;
 
-function cleanText(raw, max) {
-  return String(raw ?? "").replace(/[\u0000-\u001F\u007F\u2028\u2029]/g, " ").replace(/\s+/g, " ").trim().slice(0, max);
-}
 function safeMailWeb(raw) {
   const href = safeHttpsUrl(raw);
   if (!href) return "";
@@ -193,7 +288,7 @@ function mailHtml(m, quiet) {
   const search = cleanText(m.search, 200);
   const subject = cleanText(m.subject, 120);
   const sub = subject ? `<div class="mailsub">✉︎ ${esc(subject)}</div>` : "";
-  const cls = `go${quiet ? " ghost" : ""}`;
+  const cls = quiet ? "go ghost" : "go";
   let buttons = "";
   if (IS_IOS) {
     buttons = `<a class="${cls}" href="${GMAIL_IOS_APP}">Abrir Gmail</a>`;
@@ -216,51 +311,143 @@ async function copyText(text) {
   return ok;
 }
 
-function itemHtml(it, done) {
+// ---------- scene helpers ----------
+function thumbSrc(ref) {
+  const t = scene && scene.thumbs && typeof scene.thumbs === "object" ? scene.thumbs[String(ref || "")] : "";
+  return typeof t === "string" && t.length < 60000 && THUMB_RE.test(t) ? t : "";
+}
+function thumbHtml(it) {
+  const src = thumbSrc(it.thumb);
+  if (src) return `<img class="th" alt="" src="${esc(src)}">`;
+  return `<span class="th ic" aria-hidden="true">${esc(ICONS[it.verb] || (it.mail ? "✉️" : "•"))}</span>`;
+}
+function sheetFor(ref) {
+  const r = String(ref || "");
+  if (!JOB_RE.test(r) || !scene || !scene.scripts || typeof scene.scripts !== "object") return null;
+  const sc = scene.scripts[r];
+  if (!sc || !Array.isArray(sc.options)) return null;
+  const opts = sc.options.filter((o) => o && LETTERS.includes(o.letter)).slice(0, 3);
+  return opts.length ? { ref: r, sc, opts } : null;
+}
+function scriptRef(it) { return it && it.open && typeof it.open === "object" && sheetFor(it.open.scripts) ? String(it.open.scripts) : ""; }
+// Effective pick: newest of this device's tap and the processed pick in the scene.
+function pickOf(ref) {
+  const s = sheetFor(ref); if (!s) return { letter: "", local: false };
+  const srv = LETTERS.includes(s.sc.picked) ? s.sc.picked : "";
+  const srvAt = Date.parse(s.sc.pickedAt || "") || 0;
+  const loc = loadPicks()[ref];
+  if (loc && loc.at > srvAt && s.sc.changeable !== false) return { letter: loc.letter, local: true, sent: loc.sent, at: loc.at };
+  return { letter: srv, local: false, sent: true };
+}
+function itemById(id) {
+  for (const s of scene.sections || []) for (const it of s.items || []) if (it.id === id) return it;
+  return null;
+}
+
+// ---------- rows ----------
+function actionsHtml(it, done, opts) {
   const id = ID_RE.test(String(it.id || "")) ? String(it.id) : "";
-  const tone = TONES.has(it.tone) ? " t-" + it.tone : "";
-  const mail = mailHtml(it.mail, it.quiet);
+  const big = opts && opts.big;
+  const mail = mailHtml(it.mail, it.quiet && !big);
   const href = !mail && it.href ? safeHttpsUrl(it.href) : "";
-  const link = mail ? mail.buttons : href ? `<a class="go${it.quiet ? " ghost" : ""}" href="${esc(href)}" target="_blank" rel="noopener noreferrer">${esc(it.hrefLabel || "Abrir")}</a>` : "";
-  let doneBtn = "";
-  if (id && it.done) {
-    const label = typeof it.done === "string" ? it.done : "";
-    doneBtn = label
-      ? `<button class="done txt" type="button" data-done="${esc(id)}">${esc(label)}</button>`
-      : `<button class="done" type="button" data-done="${esc(id)}" aria-label="Hecho" title="Hecho">✓</button>`;
+  const ref = scriptRef(it);
+  let out = "";
+  if (ref) {
+    const pk = pickOf(ref);
+    out += `<button class="${pk.letter ? "ghost" : "go"}" type="button" data-scripts="${esc(ref)}">${pk.letter ? "Cambiar" : "Ver guiones"}</button>`;
   }
-  let act = "";
+  if (mail) out += mail.buttons;
+  else if (href) out += `<a class="${it.quiet || it.quietLink || (ref && !big) ? "ghost" : "go"}" href="${esc(href)}" target="_blank" rel="noopener noreferrer">${esc(it.hrefLabel || "Abrir")}</a>`;
   if (it.act && ID_RE.test(String(it.act.id || ""))) {
     const aid = String(it.act.id);
     const on = !!(done && done[aid]);
-    act = `<button class="act" type="button" data-act="${esc(aid)}"${on ? " disabled" : ""}>${esc(on ? (it.act.doneLabel || "Anotado ✓") : (it.act.label || "Hecho"))}</button>`;
+    out += `<button class="act" type="button" data-act="${esc(aid)}"${on ? " disabled" : ""}>${esc(on ? (it.act.doneLabel || "Anotado ✓") : (it.act.label || "Hecho"))}</button>`;
   }
-  const chip = it.chip && it.chip.text ? `<span class="chip${TONES.has(it.chip.tone) ? " c-" + it.chip.tone : ""}">${esc(it.chip.text)}</span>` : "";
+  if (id && it.done) {
+    const label = typeof it.done === "string" ? it.done : "";
+    out += label || big
+      ? `<button class="done" type="button" data-done="${esc(id)}">${esc(label || "Hecho ✓")}</button>`
+      : `<button class="done round" type="button" data-done="${esc(id)}" aria-label="Hecho" title="Hecho">✓</button>`;
+  }
+  return { html: out, mail };
+}
+function chipHtml(it) {
+  const ref = scriptRef(it);
+  if (ref) {
+    const pk = pickOf(ref);
+    if (pk.letter && pk.local) return `<span class="chip c-good">Elegiste ${esc(pk.letter)}</span>`;
+  }
+  return it.chip && it.chip.text ? `<span class="chip${TONES.has(it.chip.tone) ? " c-" + it.chip.tone : ""}">${esc(it.chip.text)}</span>` : "";
+}
+function subText(it) {
+  const ref = scriptRef(it);
+  if (ref) { const pk = pickOf(ref); if (pk.letter && pk.local) return "preparando el pack · puedes cambiarlo"; }
+  return it.sub || "";
+}
+function itemHtml(it, done) {
+  const id = ID_RE.test(String(it.id || "")) ? String(it.id) : "";
+  const tone = TONES.has(it.tone) ? " t-" + it.tone : "";
+  const a = actionsHtml(it, done);
+  // Compact row: the row itself opens the detail/script sheet; a chevron shows it.
+  let btns = a.html;
+  const ref = scriptRef(it);
+  if (it.quietLink && !(it.act && it.act.id)) btns = ""; // product rows: tap opens the detail (link inside)
+  else if (it.quietLink && it.act) btns = actionsHtml(Object.assign({}, it, { href: "", open: null }), done).html;
+  const chev = btns ? "" : `<span class="chev" aria-hidden="true">›</span>`;
   const verb = it.verb ? `<b>${esc(it.verb)}</b>` : "";
   const sep = it.verb && it.title ? " · " : "";
-  const mob = mail && IS_PHONE ? " mob" : "";
-  return `<div class="it${tone}${it.quiet ? " quiet" : ""}${mob}" data-id="${esc(id)}"><span class="bar"></span><div class="tx"><div class="ln">${verb}${sep}${esc(it.title || "")}${chip}</div>${it.sub ? `<div class="sub">${esc(it.sub)}</div>` : ""}${mail ? mail.sub : ""}</div><div class="bt">${link}${act}${doneBtn}</div></div>`;
+  const mob = a.mail && IS_PHONE ? " mob" : "";
+  const sub = subText(it);
+  return `<div class="it${tone}${it.quiet ? " quiet" : ""}${mob}" data-id="${esc(id)}" role="button" tabindex="0">${thumbHtml(it)}<div class="tx"><div class="ln">${verb}${sep}${esc(it.title || "")}${chipHtml(it)}</div>${sub ? `<div class="sub">${esc(sub)}</div>` : ""}${a.mail ? a.mail.sub : ""}</div><div class="bt">${btns}</div>${chev}</div>`;
 }
-
+function visibleItems(s, done) { return (Array.isArray(s.items) ? s.items : []).filter((it) => !done[it.id]); }
 function sectionHtml(s, done) {
-  const items = (Array.isArray(s.items) ? s.items : []).filter((it) => !done[it.id]);
-  const lead = s.lead ? " lead" : "";
+  const items = visibleItems(s, done);
   let body = "", lastGroup = null;
   const limit = Number(s.limit) > 0 ? Number(s.limit) : 50;
   items.slice(0, limit).forEach((it) => {
-    if (it.group && it.group !== lastGroup) { body += `<div class="grp">${esc(it.group)}</div>`; lastGroup = it.group; }
+    if (it.group && it.group !== lastGroup) { body += `<div class="grp" data-grp="${esc(s.id + ":" + it.group)}">${esc(it.group)}</div>`; lastGroup = it.group; }
     body += itemHtml(it, done);
   });
-  if (!items.length) body = `<div class="empty">${esc(s.empty || "Nada pendiente ✓")}</div>`;
+  const hadItems = Array.isArray(s.items) && s.items.length;
+  if (!items.length) body = `<div class="empty">${esc(hadItems && s.doneEmpty ? s.doneEmpty : (s.empty || "Nada pendiente ✓"))}</div>`;
   else if (items.length > limit) body += `<div class="more">+${items.length - limit} más</div>`;
   const count = items.length ? `<i>${items.length}</i>` : "";
-  return `<section class="${lead.trim()}" data-sec="${esc(s.id || "")}"><h2>${esc(s.title || "")}${count}</h2>${body}</section>`;
+  return `<section data-sec="${esc(s.id || "")}" id="sec-${esc(String(s.id || "").replace(/[^a-z0-9_-]/gi, ""))}"><h2>${esc(s.title || "")}${count}</h2>${body}</section>`;
+}
+// «Lo próximo»: the first open item of the lead section (already ordered by importance), skipping local picks.
+function nextItem(done) {
+  const lead = (scene.sections || []).find((s) => s.lead);
+  if (!lead) return null;
+  return visibleItems(lead, done).find((it) => { const r = scriptRef(it); return !(r && pickOf(r).letter); }) || null;
+}
+function nextHtml(done) {
+  const it = nextItem(done);
+  if (!it) {
+    const lead = (scene.sections || []).find((s) => s.lead);
+    return `<div class="next done"><div class="lbl">Lo próximo</div><div class="h">${esc((lead && lead.doneEmpty) || "Todo hecho por hoy ✓")}</div><div class="s">Grok sigue con lo suyo abajo.</div></div>`;
+  }
+  const a = actionsHtml(it, done, { big: true });
+  const ref = scriptRef(it);
+  let cta = a.html;
+  if (ref) cta = `<button class="go big" type="button" data-scripts="${esc(ref)}">Ver los ${sheetFor(ref).opts.length} guiones y elegir</button>`;
+  else if (!cta) cta = `<button class="go big" type="button" data-open="${esc(it.id)}">Ver</button>`;
+  const verb = it.verb ? esc(it.verb) + " · " : "";
+  return `<div class="next t-${TONES.has(it.tone) ? it.tone : "info"}" data-next="${esc(it.id)}"><div class="lbl">Lo próximo</div><div class="row">${thumbHtml(it)}<div class="tx"><div class="h">${verb}${esc(it.title || "")}</div>${it.sub ? `<div class="s">${esc(it.sub)}</div>` : ""}${a.mail ? a.mail.sub : ""}</div></div><div class="cta">${cta}</div></div>`;
 }
 
+// Tiles count what is still open on this device (done taps and script picks drop out right away).
+function liveCount(jump, fallback, done) {
+  const [sec, grp] = String(jump || "").split(":");
+  const s = (scene.sections || []).find((x) => x.id === sec);
+  if (!s) return fallback;
+  const its = visibleItems(s, done).filter((it) => (!grp || it.group === grp) && it.id !== "rec:open" && !(scriptRef(it) && pickOf(scriptRef(it)).letter && s.lead));
+  return its.length;
+}
 function render(force) {
   if (!scene) return;
   const done = loadDone();
-  const next = JSON.stringify(scene) + "|" + Object.keys(done).sort().join(",");
+  const next = JSON.stringify(scene) + "|" + Object.keys(done).sort().join(",") + "|" + JSON.stringify(loadPicks());
   if (!force && next === sig) return;
   sig = next;
   document.title = scene.title || "Tu día";
@@ -268,25 +455,193 @@ function render(force) {
   const when = scene.updatedAt ? new Date(scene.updatedAt) : null;
   const stamp = when && !Number.isNaN(when.getTime()) ? when.toLocaleTimeString("es", { hour: "numeric", minute: "2-digit" }) : "";
   $("meta").textContent = stamp ? "act. " + stamp : "";
-  $("counters").innerHTML = (scene.counters || []).map((c) => `<div class="ctr${Number(c.value) ? "" : " z"}"><b>${esc(c.value)}</b><span>${esc(c.label)}</span></div>`).join("");
+  $("counters").innerHTML = (scene.counters || []).slice(0, 4).map((c) => {
+    const jump = /^[a-z]{2,20}(:[^"<>]{1,40})?$/i.test(String(c.jump || "")) ? String(c.jump) : "";
+    const v = liveCount(jump, Number(c.value) || 0, done);
+    c = Object.assign({}, c, { value: v });
+    return `<button type="button" class="ctr${v ? (jump.startsWith("hoy") ? " hot" : "") : " z"}" data-jump="${esc(jump)}" data-v="${v}" aria-label="${esc(v + " " + (c.label || ""))}"><b>${esc(c.value)}</b><span>${esc(c.label)}</span></button>`;
+  }).join("");
   const secs = Array.isArray(scene.sections) ? scene.sections : [];
   const lead = secs.filter((s) => s.lead), rest = secs.filter((s) => !s.lead);
-  $("main").innerHTML = lead.map((s) => sectionHtml(s, done)).join("") + `<div class="rest">${rest.map((s) => sectionHtml(s, done)).join("")}</div>`;
+  $("main").innerHTML = `<div class="rest">${nextHtml(done)}${lead.map((s) => sectionHtml(s, done)).join("")}</div><div class="rest">${rest.map((s) => sectionHtml(s, done)).join("")}</div>`;
   const notes = (scene.footer || []).map((t) => `<p>${esc(t)}</p>`).join("");
   const hasBox = FEEDBACK_UUID.test(secret().f || "");
   $("foot").innerHTML = notes + (hasBox ? `<details class="note"><summary>Nota para Grok</summary><textarea id="note" placeholder="Un cambio, una duda, algo que ya hiciste…"></textarea><p><button class="go" type="button" id="noteSend">Enviar</button> <span id="noteMsg"></span></p></details>` : "");
-  document.querySelectorAll("button[data-done]").forEach((btn) => btn.addEventListener("click", () => markDone(btn.dataset.done, btn)));
-  document.querySelectorAll("button[data-act]").forEach((btn) => btn.addEventListener("click", () => markAct(btn.dataset.act, btn)));
-  document.querySelectorAll("button[data-q]").forEach((btn) => btn.addEventListener("click", async () => {
-    const ok = await copyText(cleanText(btn.dataset.q, 200));
-    toast(ok ? "Copiado. Ahora abre Gmail, toca Buscar y pega." : "No se pudo copiar.");
-  }));
   const ns = $("noteSend");
   if (ns) ns.addEventListener("click", async () => {
     const area = $("note");
     try { await sendFeedback({ kind: "note", text: String(area.value || "").slice(0, 5000) }); area.value = ""; $("noteMsg").textContent = "Enviada."; }
     catch (e) { $("noteMsg").textContent = "No se pudo enviar."; }
   });
+  if (sheetState) renderSheet();
+}
+
+// One delegated click handler for page + sheet.
+document.addEventListener("click", async (ev) => {
+  const t = ev.target.closest("button, a, .it, .ctr");
+  if (!t) return;
+  if (t.matches("a")) return; // links open normally
+  if (t.dataset.q !== undefined) { const ok = await copyText(cleanText(t.dataset.q, 200)); toast(ok ? "Copiado. Ahora abre Gmail, toca Buscar y pega." : "No se pudo copiar."); return; }
+  if (t.dataset.done) { markDone(t.dataset.done, t); return; }
+  if (t.dataset.act) { markAct(t.dataset.act, t); return; }
+  if (t.dataset.scripts) { openScripts(t.dataset.scripts); return; }
+  if (t.dataset.open) { openDetail(t.dataset.open); return; }
+  if (t.dataset.tab) { showTab(t.dataset.tab, true); return; }
+  if (t.dataset.pick !== undefined) { pickScript(t.dataset.pick); return; }
+  if (t.id === "shClose") { closeSheet(); return; }
+  if (t.classList.contains("ctr")) { jumpTo(t.dataset.jump, Number(t.dataset.v), t.querySelector("span").textContent); return; }
+  if (t.classList.contains("it") && t.dataset.id) { rowTap(t.dataset.id); }
+});
+document.addEventListener("keydown", (ev) => {
+  if (ev.key === "Escape" && sheetState) closeSheet();
+  if ((ev.key === "Enter" || ev.key === " ") && ev.target.classList && ev.target.classList.contains("it")) { ev.preventDefault(); rowTap(ev.target.dataset.id); }
+});
+$("scrim").addEventListener("click", () => closeSheet());
+
+function rowTap(id) {
+  const it = itemById(id); if (!it) return;
+  const ref = scriptRef(it);
+  if (ref && !it.detail) return openScripts(ref);
+  const href = !it.mail && it.href ? safeHttpsUrl(it.href) : "";
+  if (href && !it.detail && !it.done && !it.act) { window.open(href, "_blank", "noopener,noreferrer"); return; }
+  openDetail(id);
+}
+function jumpTo(jump, v, label) {
+  if (!v) { toast("Nada " + label + " ✓"); return; }
+  const [sec, grp] = String(jump || "").split(":");
+  let el = grp ? document.querySelector(`.grp[data-grp="${CSS.escape(sec + ":" + grp)}"]`) : null;
+  if (!el) el = document.querySelector(`section[data-sec="${CSS.escape(sec || "")}"]`);
+  if (!el) return;
+  el.scrollIntoView({ behavior: "smooth", block: "start" });
+  const target = grp && el.nextElementSibling ? el.nextElementSibling : el.querySelector("h2") || el;
+  target.classList.remove("flash"); void target.offsetWidth; target.classList.add("flash");
+}
+
+// ---------- sheets ----------
+function openSheet(state) {
+  sheetState = state;
+  $("scrim").hidden = false; $("sheet").hidden = false;
+  document.body.classList.add("lock");
+  renderSheet();
+  requestAnimationFrame(() => { $("scrim").classList.add("on"); $("sheet").classList.add("on"); });
+}
+function closeSheet() {
+  sheetState = null;
+  $("scrim").classList.remove("on"); $("sheet").classList.remove("on");
+  document.body.classList.remove("lock");
+  setTimeout(() => { if (!sheetState) { $("scrim").hidden = true; $("sheet").hidden = true; $("sheet").innerHTML = ""; } }, 260);
+}
+function openScripts(ref) {
+  const s = sheetFor(ref); if (!s) return;
+  const pk = pickOf(ref);
+  const start = pk.letter || (LETTERS.includes(s.sc.recommended) ? s.sc.recommended : s.opts[0].letter);
+  openSheet({ type: "scripts", ref, tab: start });
+}
+function openDetail(id) { if (itemById(id)) openSheet({ type: "detail", id }); }
+function renderSheet() {
+  const st = sheetState; if (!st) return;
+  const el = $("sheet");
+  if (st.type === "detail") {
+    const it = itemById(st.id); if (!it) return closeSheet();
+    const done = loadDone();
+    const a = actionsHtml(it, done, { big: true });
+    const facts = (Array.isArray(it.detail) ? it.detail : []).filter((r) => Array.isArray(r) && r.length >= 2)
+      .slice(0, 8).map((r) => `<div class="fact"><span class="k">${esc(cleanText(r[0], 30))}</span><span class="v">${esc(cleanText(r[1], 200))}</span></div>`).join("");
+    el.className = "sheet short" + (el.classList.contains("on") ? " on" : "");
+    el.innerHTML = `<div class="sh-h"><div class="grab"></div><div class="sh-top">${thumbHtml(it)}<div class="sh-t"><b id="shTitle">${it.verb ? esc(it.verb) + " · " : ""}${esc(it.title || "")}</b><span>${esc(subText(it))}</span>${a.mail ? a.mail.sub : ""}</div><button class="x" id="shClose" type="button" aria-label="Cerrar">✕</button></div></div>
+      <div class="det">${chipHtml(it) ? `<div class="badges">${chipHtml(it).replace("chip", "badge")}</div>` : ""}${facts ? `<div class="facts">${facts}</div>` : ""}<div class="acts">${a.html || `<button class="ghost" type="button" id="shClose2">Cerrar</button>`}</div></div>`;
+    const c2 = $("shClose2"); if (c2) c2.addEventListener("click", closeSheet);
+    return;
+  }
+  const s = sheetFor(st.ref); if (!s) return closeSheet();
+  const pk = pickOf(st.ref);
+  const rec = LETTERS.includes(s.sc.recommended) ? s.sc.recommended : "";
+  const thumb = thumbSrc(s.sc.thumb);
+  const keepScroll = el.querySelector(".panes") ? el.querySelector(".panes").scrollLeft : null;
+  const paneScroll = [...el.querySelectorAll(".pane")].map((p) => p.scrollTop);
+  el.className = "sheet" + (el.classList.contains("on") ? " on" : "");
+  const tabs = s.opts.map((o) => `<button class="tab" type="button" role="tab" data-tab="${o.letter}" aria-selected="${o.letter === st.tab}">${o.letter}${o.letter === pk.letter ? ` <small class="pk">✓</small>` : o.letter === rec ? " <small>★</small>" : ""}</button>`).join("");
+  el.innerHTML = `<div class="sh-h"><div class="grab"></div><div class="sh-top">${thumb ? `<img class="th" alt="" src="${esc(thumb)}">` : `<span class="th ic">✍️</span>`}<div class="sh-t"><b id="shTitle">${esc(cleanText(s.sc.product, 60) || "Guiones")}</b><span>${pk.letter ? `Elegiste ${esc(pk.letter)}${pk.local ? " · preparando el pack" : " · Grok arma el pack"}` : `Elige 1 de ${s.opts.length} guiones`}</span></div><button class="x" id="shClose" type="button" aria-label="Cerrar">✕</button></div><div class="tabs" role="tablist">${tabs}</div></div>
+    <div class="sh-b"><div class="panes" id="panes">${s.opts.map((o) => paneHtml(o, s, pk, rec)).join("")}</div></div>
+    <div class="sh-f" id="shFoot">${footHtml(s, pk, st.tab)}</div>`;
+  const panes = $("panes");
+  const idx = Math.max(0, s.opts.findIndex((o) => o.letter === st.tab));
+  [...el.querySelectorAll(".pane")].forEach((p, i) => { if (paneScroll[i]) p.scrollTop = paneScroll[i]; });
+  panes.scrollLeft = keepScroll !== null ? keepScroll : idx * panes.clientWidth;
+  let raf = 0;
+  panes.addEventListener("scroll", () => {
+    cancelAnimationFrame(raf);
+    raf = requestAnimationFrame(() => {
+      const i = Math.round(panes.scrollLeft / Math.max(1, panes.clientWidth));
+      const o = s.opts[Math.min(s.opts.length - 1, Math.max(0, i))];
+      if (o && o.letter !== sheetState.tab) showTab(o.letter, false);
+    });
+  }, { passive: true });
+}
+function showTab(letter, scroll) {
+  if (!sheetState || sheetState.type !== "scripts" || !LETTERS.includes(letter)) return;
+  const s = sheetFor(sheetState.ref); if (!s) return;
+  sheetState.tab = letter;
+  document.querySelectorAll(".tab").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.tab === letter)));
+  if (scroll) { const panes = $("panes"); const i = s.opts.findIndex((o) => o.letter === letter); panes.scrollTo({ left: i * panes.clientWidth, behavior: "smooth" }); }
+  $("shFoot").innerHTML = footHtml(s, pickOf(sheetState.ref), letter);
+}
+function fmtT(t) { return cleanText(t, 20).replace(/(^|-)0(\d:)/g, "$1$2").replace("-", "–"); }
+function paneHtml(o, s, pk, rec) {
+  const T = (v, n) => esc(cleanText(v, n || 600));
+  const badges = (o.letter === rec ? `<span class="badge rec">★ Recomendado${s.sc.recommendedWhy ? " · " + T(s.sc.recommendedWhy, 80) : ""}</span>` : "") +
+    (o.letter === pk.letter ? `<span class="badge pkd">✓ Elegido</span>` : "");
+  const donorUrl = o.donor && DONOR_RE.test(String(o.donor.url || "")) ? String(o.donor.url) : "";
+  const handle = o.donor ? cleanText(o.donor.handle, 40).replace(/[^A-Za-z0-9._]/g, "") : "";
+  const transfer = donorUrl
+    ? `Copia 1:1 (guion + visual) de <b>@${esc(handle)}</b><br><a href="${esc(donorUrl)}" target="_blank" rel="noopener noreferrer">Ver video donor ↗</a>${o.transfer ? `<span class="note2">${T(o.transfer, 160)}</span>` : ""}`
+    : `No transfiere donor${o.fill ? " · " + T(o.fill, 160) : " · estructura propia"}`;
+  const facts = [
+    ["Formato", o.frameworkEs || o.framework], ["Transfiere", null], ["Quién sale", o.cast], ["Dónde", o.place],
+    ["Duración", Number(o.seconds) > 0 ? `~${Math.round(Number(o.seconds))} s` : ""],
+  ].map(([k, v]) => k === "Transfiere" ? `<div class="fact"><span class="k">${k}</span><span class="v">${transfer}</span></div>`
+    : v ? `<div class="fact"><span class="k">${k}</span><span class="v">${T(v, 200)}</span></div>` : "").join("");
+  const beats = (Array.isArray(o.beats) ? o.beats : []).slice(0, 30).map((b) => `<div class="beat"><div class="tm">${esc(fmtT(b.t))}</div><div class="vo">${T(b.vo)}</div>${b.visual ? `<div class="k">Acción</div><div class="ac">${T(b.visual, 300)}</div>` : ""}${b.text ? `<span class="ost">${T(b.text, 80)}</span>` : ""}</div>`).join("");
+  return `<div class="pane" data-letter="${o.letter}">${badges ? `<div class="badges">${badges}</div>` : ""}<h3>Guion ${o.letter}${o.focus ? " · " + T(o.focus, 80) : ""}</h3>
+    <div class="hook"><div class="k">Gancho (primeros segundos)</div><p>${T(o.hook, 400)}</p>${o.hookText ? `<span class="ost">${T(o.hookText, 80)}</span>` : ""}</div>
+    <div class="facts">${facts}</div>
+    <div class="h4">Segundo a segundo</div>${beats}
+    ${o.teleprompter ? `<details class="more2"><summary>Teleprompter (todo el VO)</summary><p>${T(o.teleprompter, 3000)}</p></details>` : ""}
+    ${o.rules ? `<details class="more2"><summary>Reglas de este guion</summary><p>${T(o.rules, 400)}</p></details>` : ""}</div>`;
+}
+function footHtml(s, pk, tab) {
+  if (s.sc.changeable === false) return `<div class="msg ok">El pack ya se armó con el guion ${esc(pk.letter || s.sc.picked || "")}.</div>`;
+  if (pk.letter && pk.letter === tab) {
+    return `<div class="msg ok">Elegiste ${esc(tab)} · ${pk.local ? (pk.sent ? "preparando el pack" : "enviando…") : "Grok arma el pack"}</div><div class="row2"><button class="ghost" type="button" data-pick="">Quitar elección</button><button class="go" type="button" id="shClose">Listo</button></div>`;
+  }
+  const label = pk.letter ? `Cambiar a guion ${esc(tab)}` : `Elegir este guion (${esc(tab)})`;
+  return `${pk.letter ? `<div class="msg">Ahora tienes el ${esc(pk.letter)}. Puedes cambiar hasta que Grok arme el pack.</div>` : ""}<button class="go big" type="button" data-pick="${esc(tab)}">${label}</button>`;
+}
+
+// ---------- taps ----------
+function pickScript(letter) {
+  if (!sheetState || sheetState.type !== "scripts") return;
+  const ref = sheetState.ref;
+  if (!JOB_RE.test(ref) || !(LETTERS.includes(letter) || letter === "")) return;
+  const prev = pickOf(ref).letter;
+  const map = loadPicks(); map[ref] = { letter, at: Date.now(), sent: false }; savePicks(map);
+  render(true);
+  sendPick(ref, letter, map[ref].at);
+  if (letter) toast(`Elegiste ${letter} · preparando el pack`, () => pickUndo(ref, prev));
+  else toast("Elección quitada", () => pickUndo(ref, prev));
+}
+function pickUndo(ref, prev) {
+  const map = loadPicks(); map[ref] = { letter: prev || "", at: Date.now(), sent: false }; savePicks(map);
+  sendPick(ref, prev || "", map[ref].at); render(true);
+}
+function sendPick(ref, letter, at) {
+  sendFeedback({ kind: "pick", v: 1, job: ref, letter, at: new Date(at).toISOString() }).then(() => {
+    const m = loadPicks(); if (m[ref] && m[ref].at === at) { m[ref].sent = true; savePicks(m); render(true); }
+  }).catch(() => { toast("Sin conexión: tu elección se envía al volver a abrir."); });
+}
+function resendPicks() {
+  const m = loadPicks();
+  for (const [ref, v] of Object.entries(m)) if (!v.sent) sendPick(ref, v.letter, v.at);
 }
 
 function toast(msg, onUndo) {
@@ -295,24 +650,23 @@ function toast(msg, onUndo) {
   $("undo").hidden = !onUndo;
   $("toast").classList.add("on");
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => { $("toast").classList.remove("on"); undoFn = null; }, 5000);
+  toastTimer = setTimeout(() => { $("toast").classList.remove("on"); undoFn = null; }, 6000);
 }
-$("undo").addEventListener("click", () => { if (undoFn) undoFn(); $("toast").classList.remove("on"); });
+$("undo").addEventListener("click", (ev) => { ev.stopPropagation(); if (undoFn) undoFn(); $("toast").classList.remove("on"); });
 
 function markDone(id, btn) {
   if (!ID_RE.test(id)) return;
-  const row = btn.closest(".it");
+  const row = document.querySelector(`.it[data-id="${CSS.escape(id)}"]`);
   if (row) row.classList.add("gone");
+  if (sheetState) closeSheet();
   const map = loadDone(); map[id] = Date.now(); saveDone(map);
   setTimeout(() => render(true), 260);
-  let sent = false;
-  sendFeedback({ kind: "approve", blockId: id, choice: "done" }).then(() => { sent = true; }).catch(() => {});
+  sendFeedback({ kind: "approve", blockId: id, choice: "done" }).catch(() => {});
   toast("Listo ✓", () => {
     const m = loadDone(); delete m[id]; saveDone(m); render(true);
     sendFeedback({ kind: "approve", blockId: id, choice: "undo" }).catch(() => {});
   });
 }
-
 // Action buttons (Llegó, Pedí muestra…) keep the row; they only record the tap.
 function markAct(id, btn) {
   if (!ID_RE.test(id) || btn.disabled) return;
@@ -351,9 +705,9 @@ async function load() {
     $("main").innerHTML = `<p class="status">No se pudo abrir. La llave no coincide o todavía se está publicando.</p>`;
   }
 }
-load();
+load().then(resendPicks);
 setInterval(load, 60000);
-document.addEventListener("visibilitychange", () => { if (!document.hidden) load(); });
+document.addEventListener("visibilitychange", () => { if (!document.hidden) { load(); resendPicks(); } });
 </script>
 </body>
 </html>

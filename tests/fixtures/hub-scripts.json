@@ -1,0 +1,45 @@
+{
+  "type": "hub", "version": 2, "title": "Jueves 1 oct", "updatedAt": "2026-10-01T20:30:00-04:00",
+  "counters": [
+    {"label": "por elegir", "value": 1, "jump": "hoy:Aprobar"}, {"label": "por publicar", "value": 1, "jump": "hoy:Publicar"},
+    {"label": "por grabar", "value": 1, "jump": "grabar"}, {"label": "productos", "value": 1, "jump": "productos"}
+  ],
+  "thumbs": {},
+  "scripts": {
+    "ff-901": {
+      "job": "ff-901", "product": "Producto demo", "recommended": "A", "recommendedWhy": "transfer 1:1 del donor", "picked": null, "pickedAt": null, "changeable": true, "thumb": "",
+      "options": [
+        {"letter": "A", "focus": "Lo viejo vs lo nuevo", "framework": "comparison_product", "frameworkEs": "Comparación de producto",
+         "donor": {"handle": "donor.demo", "url": "https://www.tiktok.com/@donor.demo/video/1234567890"}, "transfer": "TRANSFER 1:1 del donor", "fill": "",
+         "cast": "1 persona", "place": "cocina", "seconds": 20, "hook": "Deja de hacerlo así.", "hookText": "DEJA DE HACERLO",
+         "beats": [{"t": "00:00-00:05", "vo": "Deja de hacerlo así.", "visual": "Plano medio", "text": "DEJA DE HACERLO"},
+                   {"t": "00:05-00:20", "vo": "Hazlo así. Chequea el link abajo.", "visual": "<img src=x id=pwn3>", "text": "CHEQUEA EL LINK"}],
+         "teleprompter": "Deja de hacerlo así. Hazlo así. Chequea el link abajo.", "rules": "sin precio"},
+        {"letter": "B", "focus": "El orden correcto", "framework": "correct_order_routine", "frameworkEs": "El orden correcto", "donor": {"handle": "evil", "url": "javascript:alert(1)"},
+         "transfer": "", "fill": "estructura propia", "cast": "", "place": "", "seconds": 15, "hook": "El orden es este.", "hookText": "EL ORDEN",
+         "beats": [{"t": "00:00-00:15", "vo": "El orden es este.", "visual": "Demo 1-2-3", "text": "1 · 2 · 3"}], "teleprompter": "", "rules": ""},
+        {"letter": "C", "focus": "Para quién es", "framework": "comparison_beneficiary", "frameworkEs": "Para quién es", "donor": null, "transfer": "", "fill": "",
+         "cast": "", "place": "", "seconds": 10, "hook": "Si alquilas, mira esto.", "hookText": "SI ALQUILAS",
+         "beats": [{"t": "00:00-00:10", "vo": "Si alquilas, mira esto.", "visual": "Señala", "text": "SI ALQUILAS"}], "teleprompter": "", "rules": ""}
+      ]
+    }
+  },
+  "sections": [
+    {"id": "hoy", "title": "Hoy te toca", "lead": true, "empty": "Nada", "doneEmpty": "Todo hecho por hoy ✓", "items": [
+      {"id": "ff:ff-901:pick", "verb": "Elegir guion", "title": "Producto demo", "sub": "3 guiones listos · recomendado A", "tone": "warn", "group": "Aprobar", "open": {"scripts": "ff-901"}},
+      {"id": "ff:ff-999:pick", "verb": "Elegir guion", "title": "Hostil", "sub": "ref inválida", "tone": "warn", "group": "Aprobar", "open": {"scripts": "../x"}},
+      {"id": "bella:1:post", "verb": "Publicar", "title": "Video demo", "sub": "video listo", "tone": "good", "group": "Publicar", "done": "Publicado",
+       "detail": [["Qué", "video demo"], ["Listo desde", "27 sep"]]}
+    ]},
+    {"id": "productos", "title": "Productos de la semana", "items": [
+      {"id": "prod:901", "verb": "", "title": "Producto demo", "sub": "te toca elegir el guion", "group": "Fecha por definir", "chip": {"text": "Guiones por aprobar", "tone": "warn"},
+       "href": "https://shop.tiktok.com/us/pdp/901", "hrefLabel": "Ver producto", "quietLink": true, "open": {"scripts": "ff-901"},
+       "detail": [["Etapa", "Guiones por aprobar"], ["Grabación", "fecha por definir"]]}
+    ]},
+    {"id": "grabar", "title": "Por grabar", "items": [{"id": "ff:ff-902:film", "verb": "Grabar", "title": "Otro demo", "sub": "8 tomas", "tone": "good", "group": "Cocina",
+      "detail": [["Lugar", "Cocina"]]}]},
+    {"id": "marcas", "title": "Marcas", "items": []},
+    {"id": "marcha", "title": "Grok está en esto", "items": []}
+  ],
+  "footer": ["nota demo"]
+}
