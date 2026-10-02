@@ -4,7 +4,7 @@ Canvas de Grok Bot. Abre index.html?c=slug. Las escenas viven en scenes/.
 
 Vista a pantalla completa, al estilo TikTok, para una escena cifrada `creator-feed`. Misma CSP que `index.html`. La llave va solo en el hash.
 
-https://raw.githack.com/JorgeDeArmas/grok-canvas/main/feed.html#b=<blob>&k=<key>&f=<uuid>
+https://jorgedearmas.github.io/grok-canvas/feed.html#b=<blob>&k=<key>&f=<uuid>  (GitHub Pages only, never raw.githack)
 
 `b` es el id de `scenes/<blob>.json` (`{"iv","ct"}`). `k` es la llave AES-GCM. `f` es opcional (UUID de webhook.site) y muestra «Nota para Grok».
 
@@ -23,6 +23,14 @@ Item `chip: {text, tone}` adds a small stage pill. Item `act: {id, label, doneLa
 
 ### feed.html: «Lo quiero»
 When the link has a mailbox (`f`) and the card has a numeric `product.id`, each card shows «Lo quiero». Tapping it POSTs `{kind:"approve", blockId:"want:<product_id>", choice:"want"}` and remembers the tap locally (`feed-want:<id>`). The bot treats it as untrusted data and only adds that product to Jorge's tracker. Nothing is sent or bought.
+
+### hub.html v2 (2026-10-01): script sheet, «Lo próximo», tappable everything
+- **Script sheet.** Scene `scripts: {"ff-007": {job, product, recommended, recommendedWhy, picked, pickedAt, changeable, thumb, pdp, options:[{letter, focus, framework, frameworkEs, donor:{handle,url}|null, transfer, fill, cast, place, seconds, hook, hookText, beats:[{t, vo, visual, text}], teleprompter, rules}]}}`. An item with `open: {scripts: "ff-007"}` opens a bottom sheet with tabs A/B/C (swipe syncs the tab), hook, VO second by second with ACCIÓN and on-screen text, donor transfer (`donor.url` must be `https://www.tiktok.com/@x/video/<id>`), recommended badge. The sheet opens on the picked or recommended letter.
+- **Pick.** «Elegir este guion» POSTs `{kind:"pick", v:1, job:"ff-NNN", letter:"A|B|C", at}` (letter `""` = quitar elección), confirms at once («Elegiste B · preparando el pack», Deshacer), stores the tap per hub link (localStorage `hub-picks:<blob>`, 7 days) and resends unsent taps when the page opens again. He can change his mind until the scene says `changeable:false` (pack built). A processed pick comes back as `picked`/`pickedAt`.
+- **Lo próximo.** The first open item of the lead section, big card with one primary button. Local ✓ and picks move it on.
+- **Rows.** Every row is a button: script rows open the sheet; rows with `detail: [[label, value], …]` open a detail sheet with their buttons; link-only rows open the link. `thumb: "<key>"` shows `scene.thumbs[key]` (inline `data:image/jpeg;base64`, < 60 KB). `quietLink: true` keeps a product's link inside its detail sheet. Tap targets ≥ 44 px, dark mode via `prefers-color-scheme`.
+- **Tiles.** `counters[] {label, value, jump}`: `jump` = section id or `hoy:<group>`; tapping scrolls there and flashes it. Counts of `hoy:` tiles are live (local ✓ and picks drop out).
+- CSP change: `img-src 'self' data:` (inline thumbs only). Tests: `npm run test:hub` (mail buttons), `npm run test:hub-scripts` (sheet, tabs, swipe, pick/change/undo payloads, tiles, hostile data); `SCENE=<decrypted scene.json> npm run test:hub-scripts` for local QA on real data (never commit real scenes: the repo is public).
 
 ## grabacion.html
 
