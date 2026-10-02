@@ -115,6 +115,39 @@
   .fchip .count { margin-left: 4px; font-weight: 500; opacity: .72; }
   .fchip.on .count { opacity: .6; }
   .note-btn { margin-left: auto; flex: none; }
+  .seg {
+    display: flex;
+    gap: 4px;
+    padding: 4px;
+    border-radius: 14px;
+    background: rgba(255,255,255,.14);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
+  .seg button {
+    flex: 1 1 0;
+    min-width: 0;
+    min-height: 44px;
+    border: 0;
+    border-radius: 11px;
+    background: transparent;
+    color: #fff;
+    font: 700 16px/1.1 -apple-system, BlinkMacSystemFont, sans-serif;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 0 8px;
+    white-space: nowrap;
+  }
+  .seg button.on { background: #fff; color: #111; }
+  .seg .count {
+    font: 600 12px/1 -apple-system, BlinkMacSystemFont, sans-serif;
+    padding: 3px 7px;
+    border-radius: 999px;
+    background: rgba(255,255,255,.22);
+  }
+  .seg button.on .count { background: rgba(0,0,0,.1); }
   .updated {
     margin: 2px 2px 0;
     font-size: 11px;
@@ -376,6 +409,9 @@ let lastFetchAt = 0;
 let loadGen = 0;
 let filterWindow = "all";
 let filterCreator = "*";
+let filterAvatar = "";
+const AVATAR_KEY = "creatorFeed.avatar";
+const AVATAR_ALL = "*";
 let currentScene = null;
 let scrollTick = 0;
 let ratios = new Map();
@@ -648,7 +684,9 @@ function labelsOf(scene) {
     empty: src.empty || "No hay videos en esta ventana hoy.",
     tap_play: src.tap_play || "Toca para ver",
     ad: src.ad || "Anuncio",
-    saves_na: src.saves_na || "—"
+    saves_na: src.saves_na || "—",
+    avatars_all: src.avatars_all || "Todos",
+    avatar_empty: src.avatar_empty || "Hoy no hay videos para {label}: ningún creador de {label} tiene un video por encima de su promedio."
   };
 }
 
@@ -749,7 +787,57 @@ function chipButton(text, count, attrs) {
   return btn;
 }
 
+function sceneAvatars(scene) {
+  const list = Array.isArray(scene && scene.avatars) ? scene.avatars : [];
+  return list.filter((a) => a && typeof a.id === "string" && /^[a-z0-9_-]{1,24}$/.test(a.id))
+    .map((a) => ({ id: a.id, label: String(a.label || a.id).slice(0, 24), empty: a.empty ? String(a.empty) : "" }));
+}
+
+function defaultAvatarId(scene) {
+  const list = sceneAvatars(scene);
+  const d = scene && typeof scene.default_avatar === "string" ? scene.default_avatar : "";
+  return list.some((a) => a.id === d) ? d : (list[0] ? list[0].id : "");
+}
+
+function cardAvatars(card, scene) {
+  const own = Array.isArray(card && card.avatars) ? card.avatars.filter((x) => typeof x === "string") : [];
+  return own.length ? own : [defaultAvatarId(scene)];
+}
+
+function avatarMatches(card, scene) {
+  if (!filterAvatar || filterAvatar === AVATAR_ALL || !sceneAvatars(scene).length) return true;
+  return cardAvatars(card, scene).includes(filterAvatar);
+}
+
+function avatarCards(scene) {
+  return (Array.isArray(scene.cards) ? scene.cards : []).filter((card) => avatarMatches(card || {}, scene));
+}
+
+function readAvatarPref() {
+  try { return localStorage.getItem(AVATAR_KEY) || ""; } catch (err) { return ""; }
+}
+
+function saveAvatarPref(id) {
+  try { localStorage.setItem(AVATAR_KEY, id); } catch (err) { /* private mode */ }
+}
+
+function resolveAvatar(scene) {
+  const list = sceneAvatars(scene);
+  if (!list.length) { filterAvatar = ""; return; }
+  const want = filterAvatar || readAvatarPref();
+  filterAvatar = (want === AVATAR_ALL || list.some((a) => a.id === want)) ? want : defaultAvatarId(scene);
+}
+
+function creatorInAvatar(creator, scene) {
+  if (!filterAvatar || filterAvatar === AVATAR_ALL || !sceneAvatars(scene).length) return true;
+  const own = Array.isArray(creator.avatars) && creator.avatars.length ? creator.avatars : [defaultAvatarId(scene)];
+  return own.includes(filterAvatar);
+}
+
 function windowCount(scene, w) {
+  if (filterAvatar && filterAvatar !== AVATAR_ALL && sceneAvatars(scene).length) {
+    return avatarCards(scene).filter((card) => (card.windows || []).some((item) => Number(item && item.w) === Number(w))).length;
+  }
   const map = scene.counts && scene.counts.tarjetas_por_ventana;
   if (map && map[String(w)] != null) return map[String(w)];
   return (scene.cards || []).filter((card) => (card.windows || []).some((item) => Number(item && item.w) === Number(w))).length;
@@ -764,11 +852,36 @@ function fillTop(scene, L) {
   const sub = document.createElement("p");
   sub.className = "sr";
   sub.textContent = scene.subtitle || "";
+  resolveAvatar(scene);
+  const avatars = sceneAvatars(scene);
+  let seg = null;
+  if (avatars.length) {
+    seg = document.createElement("div");
+    seg.className = "seg";
+    seg.setAttribute("role", "tablist");
+    const tabs = avatars.map((a) => [a.id, a.label]);
+    tabs.push([AVATAR_ALL, L.avatars_all]);
+    tabs.forEach(([id, label]) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.setAttribute("role", "tab");
+      btn.setAttribute("data-avatar", id);
+      btn.appendChild(document.createTextNode(label));
+      const n = id === AVATAR_ALL
+        ? (scene.cards || []).length
+        : (scene.cards || []).filter((card) => cardAvatars(card || {}, scene).includes(id)).length;
+      const span = document.createElement("span");
+      span.className = "count";
+      span.textContent = String(n);
+      btn.appendChild(span);
+      seg.appendChild(btn);
+    });
+  }
   const wins = document.createElement("div");
   wins.className = "scroller";
-  const total = scene.counts && scene.counts.tarjetas != null
-    ? scene.counts.tarjetas
-    : (scene.cards || []).length;
+  const total = avatars.length && filterAvatar !== AVATAR_ALL
+    ? avatarCards(scene).length
+    : (scene.counts && scene.counts.tarjetas != null ? scene.counts.tarjetas : (scene.cards || []).length);
   wins.appendChild(chipButton(L.all, total, { "data-window": "all" }));
   (scene.windows || []).forEach((w) => {
     wins.appendChild(chipButton(String(w) + "d", windowCount(scene, w), { "data-window": String(w) }));
@@ -785,15 +898,20 @@ function fillTop(scene, L) {
   const creators = document.createElement("div");
   creators.className = "scroller";
   creators.appendChild(chipButton(L.creators_all, total, { "data-creator": "*" }));
+  const inTab = avatarCards(scene);
   (scene.creators || []).forEach((creator) => {
     if (!creator || creator.handle == null) return;
+    if (!creatorInAvatar(creator, scene)) return;
     const handle = String(creator.handle);
-    creators.appendChild(chipButton("@" + handle, creator.count, { "data-creator": handle }));
+    const n = avatars.length ? inTab.filter((card) => String(card.creator || "") === handle).length : creator.count;
+    creators.appendChild(chipButton("@" + handle, n, { "data-creator": handle }));
   });
+  if (filterCreator !== "*" && !creators.querySelector(`[data-creator="${CSS.escape(filterCreator)}"]`)) filterCreator = "*";
   const updated = document.createElement("p");
   updated.className = "updated";
   updated.textContent = scene.updated_label || "";
-  topbar.append(h1, sub, wins, creators, updated);
+  if (seg) topbar.append(h1, sub, seg, wins, creators, updated);
+  else topbar.append(h1, sub, wins, creators, updated);
   paintChips();
   methodLine.textContent = scene.method || "";
   document.title = scene.title || "Creator Feed";
@@ -810,9 +928,15 @@ function paintChips() {
     btn.classList.toggle("on", on);
     btn.setAttribute("aria-pressed", on ? "true" : "false");
   });
+  topbar.querySelectorAll("[data-avatar]").forEach((btn) => {
+    const on = btn.getAttribute("data-avatar") === filterAvatar;
+    btn.classList.toggle("on", on);
+    btn.setAttribute("aria-selected", on ? "true" : "false");
+  });
 }
 
 function cardMatches(card) {
+  if (currentScene && !avatarMatches(card, currentScene)) return false;
   if (filterWindow !== "all") {
     const wanted = Number(filterWindow);
     const windows = card.windows || [];
@@ -1098,7 +1222,9 @@ function renderCards(scene, opts) {
     empty.className = "card empty";
     const msg = document.createElement("p");
     msg.className = "empty-msg";
-    msg.textContent = L.empty;
+    const av = sceneAvatars(scene).find((a) => a.id === filterAvatar);
+    const tabEmpty = av && filterWindow === "all" && filterCreator === "*" && !avatarCards(scene).length;
+    msg.textContent = tabEmpty ? (av.empty || L.avatar_empty.replace("{label}", av.label)) : L.empty;
     empty.appendChild(msg);
     feed.appendChild(empty);
     feed.scrollTop = 0;
@@ -1311,6 +1437,19 @@ topbar.addEventListener("click", (ev) => {
     noteToast.textContent = "";
     sheet.hidden = false;
     noteText.focus();
+    return;
+  }
+  const avBtn = ev.target.closest("[data-avatar]");
+  if (avBtn) {
+    const id = avBtn.getAttribute("data-avatar") || "";
+    if (id === filterAvatar) return;
+    filterAvatar = id;
+    saveAvatarPref(id);
+    filterCreator = "*";
+    if (currentScene) {
+      fillTop(currentScene, labelsOf(currentScene));
+      renderCards(currentScene, {});
+    }
     return;
   }
   const win = ev.target.closest("[data-window]");
