@@ -17,6 +17,7 @@ assert.doesNotMatch(html, /\beval\s*\(|new\s+Function|document\.write|insertAdja
 const B = (k) => `https://jorgedearmas.github.io/grok-canvas/index.html#b=${k}&k=key${k}`;
 const fixture = {
   type: "boards", version: 1, updatedAt: new Date().toISOString(),
+  avatars: [{ id: "miamix", label: "Miami X" }, { id: "bella", label: "Bella" }, { id: "all", label: "hack" }],
   kinds: [{ id: "ai", label: "Video IA" }, { id: "film", label: "Board de grabación" }],
   boards: [
     { id: "a1", code: "JOB-40", name: "Magnesio Demo", avatar: "miamix", kind: "ai", status: "Violación", tone: "bad", date: "2026-10-03T15:38", board: B("a1"), note: "TikTok Shop lo marcó como contenido engañoso.", noteTone: "bad" },
