@@ -47,6 +47,12 @@
   .ctr.hot b { color: var(--accent); }
   .ctr.z b { color: var(--muted); }
   .ctr:active { transform: scale(.97); }
+  .quick { display: flex; gap: 8px; margin-top: 8px; }
+  .quick:empty { display: none; }
+  .quick a { flex: 1; display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 44px; padding: 8px 14px; border-radius: 14px;
+    background: var(--card); color: var(--text); text-decoration: none; font-weight: 600; font-size: 15px; }
+  .quick a span { color: var(--muted); font-weight: 500; font-size: 13px; white-space: nowrap; }
+  .quick a::after { content: "›"; color: var(--muted); font-size: 22px; line-height: 1; margin-left: 2px; }
   main { max-width: 1100px; margin: 0 auto; padding: 12px 12px 8px; display: grid; gap: 14px; grid-template-columns: 1fr; align-items: start; }
   .rest { display: grid; gap: 14px; min-width: 0; }
   @media (min-width: 860px) { main { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); padding: 16px 20px; } }
@@ -184,6 +190,7 @@
 <header><div class="top">
   <div class="hrow"><h1 id="title">Tu día</h1><span class="meta" id="meta">Cargando…</span></div>
   <div class="counters" id="counters"></div>
+  <div class="quick" id="quick"></div>
 </div></header>
 <main id="main"></main>
 <div class="foot" id="foot"></div>
@@ -460,6 +467,13 @@ function render(force) {
     const v = liveCount(jump, Number(c.value) || 0, done);
     c = Object.assign({}, c, { value: v });
     return `<button type="button" class="ctr${v ? (jump.startsWith("hoy") ? " hot" : "") : " z"}" data-jump="${esc(jump)}" data-v="${v}" aria-label="${esc(v + " " + (c.label || ""))}"><b>${esc(c.value)}</b><span>${esc(c.label)}</span></button>`;
+  }).join("");
+  // quick links (e.g. «Todos los boards»): only pages of this same canvas site, max 3
+  $("quick").innerHTML = (Array.isArray(scene.quick) ? scene.quick : []).slice(0, 3).map((q) => {
+    const href = safeHttpsUrl(q && q.href);
+    let same = false; try { same = !!href && new URL(href).origin === location.origin; } catch (e) {}
+    if (!same || !q.label) return "";
+    return `<a href="${esc(href)}" target="_blank" rel="noopener noreferrer" data-quick="1">${esc(String(q.label).slice(0, 30))}${q.sub ? `<span>${esc(String(q.sub).slice(0, 30))}</span>` : ""}</a>`;
   }).join("");
   const secs = Array.isArray(scene.sections) ? scene.sections : [];
   const lead = secs.filter((s) => s.lead), rest = secs.filter((s) => !s.lead);
