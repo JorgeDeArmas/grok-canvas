@@ -70,7 +70,6 @@
 const $ = (id) => document.getElementById(id);
 const THUMB_RE = /^data:image\/jpeg;base64,[A-Za-z0-9+/]+={0,2}$/;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}/;
-const AVATARS = [["all", "Todos"], ["miamix", "Miami X"], ["bella", "Bella"]];
 const TONES = new Set(["bad", "good", "info", "teal", "warn", "purple", "muted"]);
 const MONTHS = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
 function esc(s) { return String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
@@ -99,16 +98,19 @@ let scene = null, av = store.get("av", "all"), kind = store.get("kind", "all");
 function cleanScene(s) {
   const kinds = (Array.isArray(s.kinds) ? s.kinds : []).filter((k) => k && /^[a-z]{2,16}$/.test(String(k.id || ""))).map((k) => ({ id: k.id, label: txt(k.label, 24) })).slice(0, 6);
   const kindIds = new Set(kinds.map((k) => k.id));
+  const avatars = (Array.isArray(s.avatars) ? s.avatars : []).filter((a) => a && /^[a-z0-9]{2,16}$/.test(String(a.id || "")) && a.id !== "all").map((a) => ({ id: a.id, label: txt(a.label, 16) || a.id })).slice(0, 4);
+  const avIds = new Set(avatars.map((a) => a.id));
   const boards = (Array.isArray(s.boards) ? s.boards : []).filter((b) => b && kindIds.has(b.kind)).map((b) => ({
     id: txt(b.id, 40), code: txt(b.code, 16), name: txt(b.name, 48) || "Producto", what: txt(b.what, 110),
-    avatar: b.avatar === "bella" ? "bella" : (b.avatar === "miamix" ? "miamix" : "otro"), kind: b.kind,
+    avatar: avIds.has(String(b.avatar)) ? String(b.avatar) : "otro", kind: b.kind,
     status: txt(b.status, 24), tone: TONES.has(b.tone) ? b.tone : "muted", date: DATE_RE.test(String(b.date || "")) ? String(b.date) : "",
     thumb: THUMB_RE.test(String(b.thumb || "")) && String(b.thumb).length < 60000 ? b.thumb : "",
     board: boardUrl(b.board), missing: txt(b.missing, 120), note: txt(b.note, 200), noteTone: b.noteTone === "bad" ? "bad" : "soft" }));
   boards.sort((a, b) => (b.date || "").localeCompare(a.date || ""));
-  return { updatedAt: s.updatedAt, kinds, boards, footer: (Array.isArray(s.footer) ? s.footer : []).map((t) => txt(t, 220)).slice(0, 6) };
+  return { updatedAt: s.updatedAt, avatars, kinds, boards, footer: (Array.isArray(s.footer) ? s.footer : []).map((t) => txt(t, 220)).slice(0, 6) };
 }
-const avLabel = (a) => (a === "bella" ? "Bella" : a === "miamix" ? "Miami X" : "Otro");
+const avLabel = (a) => ((scene.avatars.find((x) => x.id === a) || {}).label || "Otro");
+const tabs = () => [["all", "Todos"], ...scene.avatars.map((a) => [a.id, a.label])];
 function cardHtml(b) {
   const kl = (scene.kinds.find((k) => k.id === b.kind) || {}).label || "";
   const img = b.thumb ? `<img alt="" src="${esc(b.thumb)}">` : `<span class="ph"></span>`;
@@ -121,10 +123,11 @@ function cardHtml(b) {
 }
 function render() {
   if (!scene) return;
-  if (!AVATARS.some(([id]) => id === av)) av = "all";
+  if (!tabs().some(([id]) => id === av)) av = "all";
   if (kind !== "all" && !scene.kinds.some((k) => k.id === kind)) kind = "all";
   const byAv = scene.boards.filter((b) => av === "all" || b.avatar === av);
-  $("seg").innerHTML = AVATARS.map(([id, label]) => {
+  $("seg").style.gridTemplateColumns = `repeat(${tabs().length}, 1fr)`;
+  $("seg").innerHTML = tabs().map(([id, label]) => {
     const n = scene.boards.filter((b) => id === "all" || b.avatar === id).length;
     return `<button type="button" data-av="${id}" aria-pressed="${id === av}">${esc(label)}<i>${n}</i></button>`;
   }).join("");
