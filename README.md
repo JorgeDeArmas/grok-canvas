@@ -40,11 +40,11 @@ Scene `quick: [{label, sub, href}]` (max 3) shows big buttons under the tiles, e
 
 ## boards.html
 
-«Todos los boards»: every product board on this canvas site in one phone list (`type: "boards"`), newest first. Filters: avatar segment (Todos / Miami X / Bella, with counts) and type chips (from `kinds`, e.g. Video IA / Grabación / Framework); the last filter is remembered in localStorage (`boards:av`, `boards:kind`). Per board: product photo, short name, one line of what it is, status chip, avatar, type, code + date, an optional note (`noteTone: "bad"` = red warning, e.g. a TikTok Shop violation) and «Abrir board», or the `missing` text when the key is gone. Read-only: no mailbox, CSP `img-src data:; connect-src 'self'`.
+«Todos los boards»: every product board on this canvas site in one phone list (`type: "boards"`), newest first. Filters: avatar segment (Todos + the scene `avatars`, e.g. Miami X / Bella, with counts) and type chips (from `kinds`, e.g. Video IA / Grabación / Framework); the last filter is remembered in localStorage (`boards:av`, `boards:kind`). Per board: product photo, short name, one line of what it is, status chip, avatar, type, code + date, an optional note (`noteTone: "bad"` = red warning, e.g. a TikTok Shop violation) and «Abrir board», or the `missing` text when the key is gone. Read-only: no mailbox, CSP `img-src data:; connect-src 'self'`.
 
 https://jorgedearmas.github.io/grok-canvas/boards.html#b=<blob>&k=<key>
 
-Scene: `updatedAt`, `kinds[] {id, label}`, `boards[] {id, code, name, what, avatar: miamix|bella|otro, kind (must be in kinds), status, tone: bad|good|info|teal|warn|purple|muted, date (ISO), thumb (data:image/jpeg;base64, < 60 KB), board (https, host jorgedearmas.github.io, path /grok-canvas/ only), missing, note, noteTone}`, `footer[]`. Built by hub-tu-dia `build_boards.py` on every hub refresh. Test: `SHOTS_DIR=/tmp/shots npm run test:boards` (`SCENE_FILE=<local scene.json>` for real data; never commit real scenes).
+Scene: `updatedAt`, `avatars[] {id, label}` (segment tabs after «Todos», max 4; from the creator profile `creator_feed.avatars`), `kinds[] {id, label}`, `boards[] {id, code, name, what, avatar (an avatars id, else «Otro»), kind (must be in kinds), status, tone: bad|good|info|teal|warn|purple|muted, date (ISO), thumb (data:image/jpeg;base64, < 60 KB), board (https, host jorgedearmas.github.io, path /grok-canvas/ only), missing, note, noteTone}`, `footer[]`. Built by hub-tu-dia `build_boards.py` on every hub refresh. Test: `SHOTS_DIR=/tmp/shots npm run test:boards` (`SCENE_FILE=<local scene.json>` for real data; never commit real scenes).
 
 ## grabacion.html
 
