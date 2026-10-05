@@ -269,8 +269,14 @@ function loadPicks() {
 }
 function savePicks(map) { try { localStorage.setItem(storeKey("picks"), JSON.stringify(map)); } catch (e) {} }
 
+function mailboxId() {
+  // Prefer the sealed scene mailbox (survives &f= rotations), fall back to the link's &f=.
+  const fromScene = scene && FEEDBACK_UUID.test(String(scene.mailbox || "")) ? String(scene.mailbox).trim() : "";
+  const fromUrl = String(secret().f || "").trim();
+  return fromScene || (FEEDBACK_UUID.test(fromUrl) ? fromUrl : "");
+}
 async function sendFeedback(payload) {
-  const box = String(secret().f || "").trim();
+  const box = mailboxId();
   if (!FEEDBACK_UUID.test(box)) throw new Error("sin buzón");
   const endpoint = new URL("https://webhook.site/" + box);
   if (endpoint.origin !== "https://webhook.site" || endpoint.pathname !== "/" + box) throw new Error("sin buzón");
@@ -479,7 +485,7 @@ function render(force) {
   const lead = secs.filter((s) => s.lead), rest = secs.filter((s) => !s.lead);
   $("main").innerHTML = `<div class="rest">${nextHtml(done)}${lead.map((s) => sectionHtml(s, done)).join("")}</div><div class="rest">${rest.map((s) => sectionHtml(s, done)).join("")}</div>`;
   const notes = (scene.footer || []).map((t) => `<p>${esc(t)}</p>`).join("");
-  const hasBox = FEEDBACK_UUID.test(secret().f || "");
+  const hasBox = !!mailboxId();
   $("foot").innerHTML = notes + (hasBox ? `<details class="note"><summary>Nota para Grok</summary><textarea id="note" placeholder="Un cambio, una duda, algo que ya hiciste…"></textarea><p><button class="go" type="button" id="noteSend">Enviar</button> <span id="noteMsg"></span></p></details>` : "");
   const ns = $("noteSend");
   if (ns) ns.addEventListener("click", async () => {
@@ -702,7 +708,7 @@ async function load() {
     return;
   }
   const okHost = location.hostname.endsWith("github.io") || location.hostname === "localhost" || location.hostname === "127.0.0.1";
-  if (!okHost) { $("main").innerHTML = `<p class="status">Abre este enlace desde jorgedearmas.github.io.</p>`; return; }
+  if (!okHost) { $("main").innerHTML = `<p class="status">Abre este enlace desde __CANVAS_HOST__.</p>`; return; }
   const id = sec.b.replace(/[^a-zA-Z0-9_-]/g, "");
   try {
     const res = await fetch(`scenes/${id}.json?t=${Date.now()}`, { cache: "no-store", referrerPolicy: "no-referrer" });
