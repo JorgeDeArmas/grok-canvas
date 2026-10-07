@@ -8,7 +8,7 @@ import { chromium, devices } from "playwright";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const SHOTS = process.env.SHOTS_DIR || "/opt/cursor/artifacts/screenshots";
-const MEDIA = "/cursor/stores/bc-0791c206-427a-5891-b089-3334282963d0/media";
+const MEDIA = process.env.MEDIA_DIR || "";
 const ORIGIN = "https://jorgedearmas.github.io";
 const API = "https://creator-portal-api.example.workers.dev";
 const html = fs.readFileSync(path.join(ROOT, "manager.html"), "utf8");
@@ -46,7 +46,7 @@ function json(route, status, obj) {
 const browser = await chromium.launch({ executablePath: process.env.CHROME || "/usr/bin/google-chrome", args: ["--no-sandbox", "--disable-dev-shm-usage"] })
   .catch(() => chromium.launch({ args: ["--no-sandbox", "--disable-dev-shm-usage"] }));
 fs.mkdirSync(SHOTS, { recursive: true });
-fs.mkdirSync(MEDIA, { recursive: true });
+if (MEDIA) fs.mkdirSync(MEDIA, { recursive: true });
 const errors = [];
 const ctx = await browser.newContext({ locale: "es-ES", permissions: ["clipboard-read", "clipboard-write"], ...devices["iPhone 13"] });
 await ctx.route("**/*", (route) => {
@@ -92,7 +92,7 @@ await page.click("[data-copy]");
 const copied = await page.evaluate(() => window.__copied);
 assert.deepEqual(copied, [LINK]);
 await page.screenshot({ path: path.join(SHOTS, "manager.png"), fullPage: true });
-try { fs.copyFileSync(path.join(SHOTS, "manager.png"), path.join(MEDIA, "manager.png")); } catch (e) {}
+if (MEDIA) { try { fs.copyFileSync(path.join(SHOTS, "manager.png"), path.join(MEDIA, "manager.png")); } catch (e) {} }
 await page.click("[data-approve='take-1']");
 await page.waitForTimeout(200);
 assert.equal(state.sessions[0].takes[0].status, "approved");
@@ -107,5 +107,5 @@ await ctx.close();
 await browser.close();
 assert.deepEqual(errors, []);
 assert.ok(fs.existsSync(path.join(SHOTS, "manager.png")));
-if (fs.existsSync(MEDIA)) assert.ok(fs.existsSync(path.join(MEDIA, "manager.png")));
+if (MEDIA) assert.ok(fs.existsSync(path.join(MEDIA, "manager.png")));
 console.log("manager viewer OK");

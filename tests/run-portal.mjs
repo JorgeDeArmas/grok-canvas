@@ -8,7 +8,7 @@ import { chromium, devices } from "playwright";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const SHOTS = process.env.SHOTS_DIR || "/opt/cursor/artifacts/screenshots";
-const MEDIA = "/cursor/stores/bc-0791c206-427a-5891-b089-3334282963d0/media";
+const MEDIA = process.env.MEDIA_DIR || "";
 const ORIGIN = "https://jorgedearmas.github.io";
 const API = "https://creator-portal-api.example.workers.dev";
 const html = fs.readFileSync(path.join(ROOT, "portal.html"), "utf8");
@@ -138,7 +138,7 @@ async function handleApi(route) {
 const browser = await chromium.launch({ executablePath: process.env.CHROME || "/usr/bin/google-chrome", args: ["--no-sandbox", "--disable-dev-shm-usage"] })
   .catch(() => chromium.launch({ args: ["--no-sandbox", "--disable-dev-shm-usage"] }));
 fs.mkdirSync(SHOTS, { recursive: true });
-fs.mkdirSync(MEDIA, { recursive: true });
+if (MEDIA) fs.mkdirSync(MEDIA, { recursive: true });
 const errors = [];
 
 async function open(name, token, opts) {
@@ -173,7 +173,7 @@ async function open(name, token, opts) {
   assert.ok(await page.locator(".nm").first().evaluate((el) => el.scrollWidth > el.clientWidth || el.textContent.length > 20));
   assert.equal(await page.locator("button.btn", { hasText: "Ver board" }).count() >= 2, true);
   await page.screenshot({ path: path.join(SHOTS, "portal-plp.png"), fullPage: true });
-  try { fs.copyFileSync(path.join(SHOTS, "portal-plp.png"), path.join(MEDIA, "portal-plp.png")); } catch (e) {}
+  if (MEDIA) { try { fs.copyFileSync(path.join(SHOTS, "portal-plp.png"), path.join(MEDIA, "portal-plp.png")); } catch (e) {} }
   await page.locator("[data-open='FF-010']").click();
   await page.waitForSelector("#sec-ref");
   const ids = await page.locator("article").evaluateAll((els) => els.map((e) => e.id));
@@ -184,7 +184,7 @@ async function open(name, token, opts) {
   const copied = await page.evaluate(() => window.__copied);
   assert.ok(copied.some((t) => t.includes("SHOT 01")));
   await page.screenshot({ path: path.join(SHOTS, "portal-pdp.png"), fullPage: true });
-  try { fs.copyFileSync(path.join(SHOTS, "portal-pdp.png"), path.join(MEDIA, "portal-pdp.png")); } catch (e) {}
+  if (MEDIA) { try { fs.copyFileSync(path.join(SHOTS, "portal-pdp.png"), path.join(MEDIA, "portal-pdp.png")); } catch (e) {} }
   await ctx.close();
 }
 
@@ -303,7 +303,7 @@ await browser.close();
 assert.deepEqual(errors, []);
 assert.ok(fs.existsSync(path.join(SHOTS, "portal-plp.png")));
 assert.ok(fs.existsSync(path.join(SHOTS, "portal-pdp.png")));
-if (fs.existsSync(MEDIA)) {
+if (MEDIA) {
   assert.ok(fs.existsSync(path.join(MEDIA, "portal-plp.png")));
   assert.ok(fs.existsSync(path.join(MEDIA, "portal-pdp.png")));
 }
