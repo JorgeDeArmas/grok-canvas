@@ -160,10 +160,25 @@ async function takeAct(id, kind, reason) {
   } catch (e) {}
 }
 
+function previewUrlOk(raw, id) {
+  try {
+    const u = new URL(String(raw || ""));
+    if (u.protocol !== "https:" || u.username || u.password) return "";
+    const h = u.hostname.toLowerCase();
+    if (!(h.endsWith(".workers.dev") || h === "localhost" || h === "127.0.0.1")) return "";
+    if (!u.pathname.includes("/manager/takes/") || !u.pathname.endsWith("/file")) return "";
+    if (id && !u.pathname.includes(encodeURIComponent(id)) && !u.pathname.includes(id)) return "";
+    if (!u.searchParams.get("ticket")) return "";
+    return u.href;
+  } catch (e) {}
+  return "";
+}
+
 async function loadPreview(el) {
   try {
     const data = await api(`/manager/takes/${encodeURIComponent(el.dataset.vid)}/url`);
-    if (data && data.url) el.src = data.url;
+    const href = previewUrlOk(data && data.url, el.dataset.vid);
+    if (href) el.src = href;
   } catch (e) {}
 }
 

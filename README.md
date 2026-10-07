@@ -60,10 +60,10 @@ Marks are saved in localStorage instantly (`rec-ticks:<blob>`; newest timestamp 
 
 Mobile-first portal for a hired creator (PLP + PDP). Encrypted scene `type: "portal"`. The session token lives only in the hash (`#b=<blob>&k=<key>&t=<token>`). State and resumable multipart uploads go to the Cloudflare Worker (`apiBase` in the scene, hostname `*.workers.dev` only). Never commit a full link with `#k=`.
 
-PLP: «Hola, \<nombre\>» + product rows (thumb, truncated name, status, «Ver board»). PDP, in this order: reference video → scene board (ref frame | our frame + ACCIÓN ES) → guion with «Copiar guion» → take upload with resume (IndexedDB). Revoked/expired tokens show «Este enlace ya no está activo». Test: `npm run test:portal`.
+PLP: «Hola, \<nombre\>» + product rows (thumb, truncated name, status, «Ver board»). PDP, in this order: reference video → scene board (ref frame | our frame + ACCIÓN ES) → guion with «Copiar guion» → take upload with resume (IndexedDB). Part PUTs send the creator bearer token to `*.workers.dev`. Revoked/expired tokens show «Este enlace ya no está activo». Test: `npm run test:portal`.
 
 ## manager.html
 
-Phone view for the manager. Encrypted scene `type: "manager"`. The manager token is only in the hash (`#b=<blob>&k=<key>&m=<token>`). Lists portals, «Copiar link» (clipboard), take preview, Aprobar / Re-grabar with a reason, Revocar / Extender. Test: `npm run test:manager`.
+Phone view for the manager. Encrypted scene `type: "manager"`. The manager token is only in the hash (`#b=<blob>&k=<key>&m=<token>`). Lists portals, «Copiar link» (clipboard), take preview via a short-lived Worker ticket URL (Safari can Range-request 1080p), Aprobar / Re-grabar with a reason, Revocar / Extender. Test: `npm run test:manager`.
 
 Secret scan: `npm run test:secrets` (also runs in CI). All viewer tests: `npm test`.

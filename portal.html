@@ -205,8 +205,8 @@ function uploadRow(p, shot, take) {
     <div class="body"><div class="nm">Escena ${String(shot).padStart(2, "0")} · take ${take}</div>
     <div class="meta">${esc(LABELS[st] || st)}</div>${reason}
     <div class="bar" hidden><i></i></div>
-    <div class="act"><label class="filebtn btn">${done && st !== "redo" ? "Cambiar" : "Subir"}<input type="file" accept="video/*" data-file="${esc(p.id)}:${shot}:${take}"></label>
-    <button type="button" class="btn ghost" data-resume="${esc(p.id)}:${shot}:${take}" hidden>Reanudar</button></div>
+    <div class="act">${st === "approved" || st === "pulled" ? "" : `<label class="filebtn btn">${done && st !== "redo" ? "Cambiar" : "Subir"}<input type="file" accept="video/*" data-file="${esc(p.id)}:${shot}:${take}"></label>
+    <button type="button" class="btn ghost" data-resume="${esc(p.id)}:${shot}:${take}" hidden>Reanudar</button>`}</div>
     <p class="toast" data-toast></p></div></div>`;
 }
 
@@ -285,11 +285,24 @@ function setProgress(key, pct, toast) {
   if (toast != null) row.querySelector("[data-toast]").textContent = toast;
 }
 
-async function putPart(url, blob, attempt) {
+function partAuthHeaders(url) {
+  const headers = {};
+  try {
+    const u = new URL(url, location.href);
+    const h = u.hostname.toLowerCase();
+    if (h.endsWith(".workers.dev") || h === "localhost" || h === "127.0.0.1") {
+      const t = secret().t;
+      if (t) headers.authorization = "Bearer " + t;
+    }
+  } catch (e) {}
+  return headers;
+}
+
+async function putPart(url, blob) {
   let last;
   for (let i = 0; i < 4; i++) {
     try {
-      const res = await fetch(url, { method: "PUT", body: blob, referrerPolicy: "no-referrer", credentials: "omit" });
+      const res = await fetch(url, { method: "PUT", body: blob, referrerPolicy: "no-referrer", credentials: "omit", headers: partAuthHeaders(url) });
       if (res.ok) return { etag: (res.headers.get("etag") || res.headers.get("ETag") || "ok").replace(/"/g, ""), sha: await shaHex(blob) };
       last = new Error("http " + res.status);
     } catch (e) { last = e; }
@@ -315,7 +328,7 @@ async function startUpload(key, file) {
     await idbSet(key, rec);
     await runUpload(key, file, rec);
   } catch (e) {
-    setProgress(key, 0, e.status === 403 ? "Este enlace ya no está activo" : "No se pudo empezar");
+    setProgress(key, 0, e.status === 403 ? "Este enlace ya no está activo" : (e.status === 409 ? "Este take ya está cerrado" : "No se pudo empezar"));
   } finally { await wake(false); }
 }
 

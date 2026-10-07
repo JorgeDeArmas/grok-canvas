@@ -17,6 +17,8 @@ assert.match(html, /connect-src 'self' https:\/\/cdn\.jsdelivr\.net https:\/\/\*
 assert.doesNotMatch(html, /\beval\s*\(|new\s+Function|document\.write|insertAdjacentHTML|webhook\.site|#k=/);
 assert.doesNotMatch(html, /persona|avatar/i);
 assert.doesNotMatch(html, /editor_brief|comisi[oó]n|costos?/i);
+assert.match(html, /function partAuthHeaders[\s\S]*authorization[\s\S]*Bearer/);
+assert.match(html, /function putPart[\s\S]*partAuthHeaders/);
 
 const JPEG = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wAAAAD/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAn/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIQAxAAAAD/AP/EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAT8Af//Z";
 
@@ -102,12 +104,15 @@ async function handleApi(route) {
   if (u.pathname === "/upload/sign" && r.method() === "POST") {
     if (auth === REVOKED || auth === EXPIRED) return json(route, 403, { error: "inactive", message: "Este enlace ya no está activo" });
     const body = JSON.parse(r.postData() || "{}");
-    const urls = (body.partNumbers || []).map((n) => ({ partNumber: n, url: `${API}/r2/${body.uploadId}/${n}` }));
+    const urls = (body.partNumbers || []).map((n) => ({ partNumber: n, url: `${API}/upload/part/${body.uploadId}/${n}` }));
     return json(route, 200, { urls });
   }
-  if (u.pathname.startsWith("/r2/") && r.method() === "PUT") {
+  if (u.pathname.startsWith("/upload/part/") && r.method() === "PUT") {
+    if (!auth || (auth !== TOKEN && auth !== REVOKED && auth !== EXPIRED && !db.sessions[auth])) {
+      return json(route, 403, { error: "unauthorized" });
+    }
     const parts = u.pathname.split("/");
-    const uploadId = parts[2], n = parts[3];
+    const uploadId = parts[3], n = parts[4];
     const failAt = db.uploads.get(uploadId) && db.uploads.get(uploadId)._failAfter;
     const rec = db.uploads.get(uploadId);
     if (rec) {
@@ -226,7 +231,8 @@ async function fakeUpload(page, size, failAfter) {
         if (rec.parts[n]) continue;
         const sign = await (await fetch(API + "/upload/sign", { method: "POST", headers: { "content-type": "application/json", authorization: "Bearer " + (location.hash.match(/t=([^&]+)/) || [])[1] }, body: JSON.stringify({ uploadId: rec.uploadId, partNumbers: [n] }) })).json();
         const blob = file.slice((n - 1) * init.partSize, Math.min(n * init.partSize, file.size));
-        const put = await fetch(sign.urls[0].url, { method: "PUT", body: blob });
+        const tok = (location.hash.match(/t=([^&]+)/) || [])[1];
+        const put = await fetch(sign.urls[0].url, { method: "PUT", body: blob, headers: { authorization: "Bearer " + tok } });
         if (!put.ok) {
           if (allowFail) return { cutAt: n, rec, total };
           throw new Error("put " + n);
@@ -272,7 +278,7 @@ async function fakeUpload(page, size, failAfter) {
       if (n <= already) continue;
       resent += 1;
       const sign = await (await fetch(API + "/upload/sign", { method: "POST", headers: { "content-type": "application/json", authorization: "Bearer " + (location.hash.match(/t=([^&]+)/) || [])[1] }, body: JSON.stringify({ uploadId, partNumbers: [n] }) })).json();
-      const put = await fetch(sign.urls[0].url, { method: "PUT", body: file.slice((n - 1) * partSize, Math.min(n * partSize, size)) });
+      const put = await fetch(sign.urls[0].url, { method: "PUT", body: file.slice((n - 1) * partSize, Math.min(n * partSize, size)), headers: { authorization: "Bearer " + (location.hash.match(/t=([^&]+)/) || [])[1] } });
       if (!put.ok) throw new Error("resume put " + n);
     }
     const etags = Array.from({ length: total }, (_, i) => ({ partNumber: i + 1, etag: "etag-" + (i + 1) }));
