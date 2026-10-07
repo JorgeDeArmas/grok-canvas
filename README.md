@@ -55,3 +55,15 @@ https://jorgedearmas.github.io/grok-canvas/grabacion.html#b=<blob>&k=<key>
 Scene: `updatedAt`, `products{key: {name, thumb}}` (thumb must be `data:image/jpeg;base64,…`), `videos[] {id: rec:<job>, day: YYYY-MM-DD|sin-fecha, place, product, title, stage 0-5, ready, board (https, host jorgedearmas.github.io, path /grok-canvas/ only)}`, `ticks{rec:<job>: [0|1, ms]}`, `mailbox` (webhook.site UUID; preferred over `&f=` so the link survives mailbox rotation).
 
 Marks are saved in localStorage instantly (`rec-ticks:<blob>`; newest timestamp wins against the scene's `ticks`), are undo-able, and are sent as ONE `text/plain` POST `{kind:"ticks", v:2, set:{"rec:<job>":[0|1, ms]}}` (no CORS preflight) at most every 5 minutes, or when the creator taps «Enviar» (a free webhook.site URL takes ~100 requests). The bot treats it as untrusted data: ids must match `^rec:[a-z0-9]{2,24}$` and the only effect is the filmed mark. Test: `SHOTS_DIR=/tmp/shots npm run test:grabacion` (`SCENE_FILE=<local scene.json>` renders real data locally; never commit real scenes).
+
+## portal.html
+
+Mobile-first portal for a hired creator (PLP + PDP). Encrypted scene `type: "portal"`. The session token lives only in the hash (`#b=<blob>&k=<key>&t=<token>`). State and resumable multipart uploads go to the Cloudflare Worker (`apiBase` in the scene, hostname `*.workers.dev` only). Never commit a full link with `#k=`.
+
+PLP: «Hola, \<nombre\>» + product rows (encrypted thumb, truncated name, status, «Ver board»). PDP, in this order: encrypted reference video (`00-ref/ref.mp4`) → scene board matching the filming board (reference frame | our frame per beat, plus ACCIÓN and VO) → guion with «Copiar guion» → take upload with resume (IndexedDB). Media is AES-GCM `.enc` like the rest of the canvas (12-byte IV + ciphertext, decrypted to `blob:` URLs). Part PUTs send the creator bearer token to `*.workers.dev`. Revoked/expired tokens show «Este enlace ya no está activo». Test: `npm run test:portal`.
+
+## manager.html
+
+Phone view for the manager. Encrypted scene `type: "manager"`. The manager token is only in the hash (`#b=<blob>&k=<key>&m=<token>`). Lists portals, «Copiar link» (clipboard), take preview via a short-lived Worker ticket URL (Safari can Range-request 1080p), Aprobar / Re-grabar with a reason, Revocar / Extender. Test: `npm run test:manager`.
+
+Secret scan: `npm run test:secrets` (also runs in CI). All viewer tests: `npm test`.
