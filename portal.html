@@ -96,6 +96,66 @@ function apiBaseOk(raw) {
   return "";
 }
 function thumb(v) { const s = String(v || ""); return THUMB_RE.test(s) && s.length < 60000 ? s : ""; }
+const MEDIA_NAME_RE = /^media\/m[a-f0-9]{16}\.enc$/i;
+const SAFE_MIME = new Set(["image/jpeg", "image/png", "image/gif", "image/webp", "video/mp4", "video/webm", "video/quicktime"]);
+const decryptedMedia = new Map();
+function safeMediaUrl(raw) {
+  const t = String(raw || "").trim();
+  if (!t || t.length > 2048 || /[\u0000-\u001F\u007F\\\s]/.test(t)) return "";
+  if (MEDIA_NAME_RE.test(t)) {
+    try { return new URL(t, location.href).href; } catch (e) { return ""; }
+  }
+  let u;
+  try { u = new URL(t, location.href); } catch (e) { return ""; }
+  if (u.protocol !== "https:" || u.username || u.password || u.port) return "";
+  const host = u.hostname.toLowerCase();
+  if (host !== "cdn.jsdelivr.net" && u.origin !== location.origin) return "";
+  if (!/\/media\/m[a-f0-9]{16}\.enc$/i.test(u.pathname)) return "";
+  return u.href;
+}
+function safeMime(raw, fallback) {
+  const mime = String(raw ?? "").trim().toLowerCase().split(";")[0].trim();
+  if (SAFE_MIME.has(mime)) return mime;
+  return fallback && SAFE_MIME.has(fallback) ? fallback : (fallback || "application/octet-stream");
+}
+function asMedia(v, kind) {
+  if (v && typeof v === "object" && v.enc === true) {
+    const src = safeMediaUrl(v.src);
+    if (!src) return null;
+    return { enc: true, src, mime: safeMime(v.mime, kind === "video" ? "video/mp4" : "image/jpeg") };
+  }
+  if (kind !== "video") { const t = thumb(v); return t || null; }
+  return null;
+}
+function mediaImg(v) {
+  const m = asMedia(v, "image");
+  if (!m) return `<span class="ph"></span>`;
+  if (typeof m === "string") return `<img alt="" src="${esc(m)}">`;
+  return `<img alt="" class="ph" data-enc="${esc(m.src)}" data-mime="${esc(m.mime)}">`;
+}
+async function decryptMediaNow(url, mime) {
+  const safe = safeMediaUrl(url);
+  if (!safe) throw new Error("blocked");
+  const keyText = secret().k;
+  if (!keyText) throw new Error("decrypt");
+  const res = await fetch(safe, { referrerPolicy: "no-referrer", credentials: "omit" });
+  if (!res.ok) throw new Error("http");
+  const buf = new Uint8Array(await res.arrayBuffer());
+  if (buf.byteLength < 28) throw new Error("decrypt");
+  const key = await crypto.subtle.importKey("raw", b64urlToBytes(keyText), "AES-GCM", false, ["decrypt"]);
+  const plain = await crypto.subtle.decrypt({ name: "AES-GCM", iv: buf.subarray(0, 12) }, key, buf.subarray(12));
+  return URL.createObjectURL(new Blob([plain], { type: safeMime(mime, "application/octet-stream") }));
+}
+async function hydrateEnc(root) {
+  await Promise.all([...root.querySelectorAll("[data-enc]")].map(async (el) => {
+    const src = el.getAttribute("data-enc") || "", mime = el.getAttribute("data-mime") || "", cacheKey = src + "\0" + mime;
+    try {
+      let url = decryptedMedia.get(cacheKey);
+      if (!url) { url = await decryptMediaNow(src, mime); decryptedMedia.set(cacheKey, url); }
+      el.src = url; el.classList.remove("ph");
+    } catch (e) {}
+  }));
+}
 let scene = null, live = null, view = "plp", productId = "", lock = null;
 
 function openDb() {
@@ -136,6 +196,10 @@ function jobStatus(job) {
   const j = ((live && live.jobs) || []).find((x) => x.job_id === job);
   return (j && j.status) || (scene.products.find((p) => p.id === job) || {}).status || "sent";
 }
+function takeDisplay(ts) {
+  if (ts && ts.pulled_at && ts.status !== "redo") return "pulled";
+  return (ts && ts.status) || "sent";
+}
 
 async function api(path, opts) {
   const base = apiBaseOk(scene && scene.apiBase);
@@ -168,7 +232,7 @@ async function refreshLive() {
   }
 }
 
-function renderPlp() {
+async function renderPlp() {
   view = "plp"; productId = "";
   $("back").hidden = true;
   const name = txt(scene.creatorName, 40) || "creadora";
@@ -176,26 +240,25 @@ function renderPlp() {
   $("meta").textContent = (scene.products || []).length + " productos";
   const rows = (scene.products || []).map((p) => {
     const st = jobStatus(p.id);
-    const img = thumb(p.thumb) ? `<img alt="" src="${esc(thumb(p.thumb))}">` : `<span class="ph"></span>`;
+    const img = mediaImg(p.thumb);
     return `<div class="card" data-p="${esc(p.id)}">${img}<div class="body"><div class="nm">${esc(txt(p.name, 48) || "Producto")}</div>`
       + `<div class="tags"><span class="tag st ${esc(TONES[st] || "muted")}">${esc(LABELS[st] || st)}</span></div>`
       + `<div class="act"><button type="button" class="btn" data-open="${esc(p.id)}">Ver board</button></div></div></div>`;
   }).join("");
   $("main").innerHTML = rows ? `<div class="list">${rows}</div>` : `<div class="empty">Nada que grabar.</div>`;
   $("main").querySelectorAll("[data-open]").forEach((b) => b.addEventListener("click", () => openPdp(b.dataset.open)));
+  await hydrateEnc($("main"));
 }
 
 function beatHtml(b) {
-  const rf = thumb(b.refFrame) ? `<img alt="" src="${esc(thumb(b.refFrame))}">` : `<span class="ph"></span>`;
-  const of = thumb(b.ourFrame) ? `<img alt="" src="${esc(thumb(b.ourFrame))}">` : `<span class="ph"></span>`;
-  return `<div class="beat" data-shot="${esc(b.shot)}"><div>${rf}<div class="cap">Referencia</div></div><div>${of}<div class="cap">Tu escena</div></div></div>`
+  return `<div class="beat" data-shot="${esc(b.shot)}"><div>${mediaImg(b.refFrame)}<div class="cap">Referencia</div></div><div>${mediaImg(b.ourFrame)}<div class="cap">Tu escena</div></div></div>`
     + (b.do_es ? `<div class="accion"><b>ACCIÓN:</b> ${esc(txt(b.do_es, 400))}</div>` : "")
     + (b.vo ? `<div class="vo">${esc(txt(b.vo, 280))}</div>` : "");
 }
 
 function uploadRow(p, shot, take) {
   const ts = takeState(p.id, shot, take);
-  const st = (ts && ts.status) || "sent";
+  const st = takeDisplay(ts);
   const reason = (ts && ts.redo_reason) ? `<div class="banner">${esc(txt(ts.redo_reason, 200))}</div>` : "";
   const done = st === "uploaded" || st === "approved" || st === "pulled";
   const cls = st === "redo" ? "redo" : (done ? "on" : "");
@@ -221,7 +284,10 @@ async function renderPdp(p) {
     const n = Math.max(1, Number(s.takes || s.takesPerShot || 1));
     return Array.from({ length: n }, (_, i) => uploadRow(p, s.shot, i + 1));
   }).join("");
-  const ref = p.refSrc ? `<video controls playsinline src="${esc(p.refSrc)}"></video>` : (p.refHint ? `<p class="meta">${esc(p.refHint)}</p>` : `<p class="meta">Sin video de referencia en este enlace.</p>`);
+  const refM = asMedia(p.refSrc, "video");
+  const ref = refM && typeof refM === "object"
+    ? `<video controls playsinline data-enc="${esc(refM.src)}" data-mime="${esc(refM.mime)}"></video>`
+    : `<p class="meta">Sin video de referencia en este enlace.</p>`;
   $("main").innerHTML = `<div class="banner" id="stay" hidden>No cierres Safari mientras sube. Si se corta, vuelve a abrir este link y toca Reanudar.</div>
     <article id="sec-ref"><h2>Video de referencia</h2>${ref}</article>
     <article id="sec-board"><h2>Board de escenas</h2>${beats || "<p class='meta'>Sin beats.</p>"}</article>
@@ -235,6 +301,7 @@ async function renderPdp(p) {
   $("main").querySelectorAll("[data-file]").forEach((inp) => inp.addEventListener("change", () => { if (inp.files && inp.files[0]) startUpload(inp.dataset.file, inp.files[0]); }));
   $("main").querySelectorAll("[data-resume]").forEach((b) => b.addEventListener("click", () => resumeUpload(b.dataset.resume)));
   await markResumable(p);
+  await hydrateEnc($("main"));
 }
 
 async function loadProduct(id) {
@@ -377,7 +444,7 @@ async function runUpload(key, file, rec) {
   if (view === "pdp") { const p = await loadProduct(productId); if (p) await renderPdp(p); }
 }
 
-$("back").addEventListener("click", () => renderPlp());
+$("back").addEventListener("click", () => { renderPlp(); });
 
 async function load() {
   const sec = secret();
@@ -392,18 +459,18 @@ async function load() {
     scene = {
       type: "portal", creatorName: txt(next.creatorName, 40), apiBase: apiBaseOk(next.apiBase),
       products: (Array.isArray(next.products) ? next.products : []).slice(0, 40).map((p) => ({
-        id: txt(p.id, 16), name: txt(p.name, 48), thumb: thumb(p.thumb), blob: txt(p.blob, 40),
+        id: txt(p.id, 16), name: txt(p.name, 48), thumb: asMedia(p.thumb, "image"), blob: txt(p.blob, 40),
         status: txt(p.status, 16) || "sent", script: String(p.script || "").slice(0, 20000),
         beats: Array.isArray(p.beats) ? p.beats.slice(0, 40).map((b) => ({
           shot: Number(b.shot) || 0, vo: txt(b.vo, 400), do_es: txt(b.do_es, 500),
-          refFrame: thumb(b.refFrame), ourFrame: thumb(b.ourFrame)
+          refFrame: asMedia(b.refFrame, "image"), ourFrame: asMedia(b.ourFrame, "image")
         })) : null,
         shots: Array.isArray(p.shots) ? p.shots.slice(0, 40).map((s) => ({ shot: Number(s.shot) || 0, takes: Number(s.takes || s.takesPerShot || 1) })) : null,
-        refSrc: "", refHint: txt(p.refHint, 80)
+        refSrc: asMedia(p.refSrc, "video")
       }))
     };
     try { await refreshLive(); } catch (e) { if (!scene) return; }
-    if (view === "pdp" && productId) openPdp(productId); else renderPlp();
+    if (view === "pdp" && productId) openPdp(productId); else await renderPlp();
   } catch (e) {
     if (!scene) $("main").innerHTML = `<p class="status">No se pudo abrir. La llave no coincide o todavía se está publicando.</p>`;
   }

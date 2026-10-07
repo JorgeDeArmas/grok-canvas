@@ -19,21 +19,44 @@ assert.doesNotMatch(html, /persona|avatar/i);
 assert.doesNotMatch(html, /editor_brief|comisi[oó]n|costos?/i);
 assert.match(html, /function partAuthHeaders[\s\S]*authorization[\s\S]*Bearer/);
 assert.match(html, /function putPart[\s\S]*partAuthHeaders/);
+assert.match(html, /function decryptMediaNow/);
+assert.match(html, /blob:/);
+assert.doesNotMatch(html, /refHint|refSrc:\s*["']["']/);
 
 const JPEG = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wAAAAD/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAn/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIQAxAAAAD/AP/EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAT8Af//Z";
+const JPEG_BYTES = Uint8Array.from(Buffer.from(JPEG.split(",")[1], "base64"));
+const IMG_ENC = "media/m0123456789abcdef.enc";
+const VID_ENC = "media/mfedcba9876543210.enc";
+const ENC_IMG = { enc: true, src: IMG_ENC, mime: "image/jpeg" };
+const ENC_VID = { enc: true, src: VID_ENC, mime: "video/mp4" };
+
+const keyBytes = webcrypto.getRandomValues(new Uint8Array(32));
+const keyText = Buffer.from(keyBytes).toString("base64url");
+const aesKey = await webcrypto.subtle.importKey("raw", keyBytes, "AES-GCM", false, ["encrypt"]);
+
+async function sealMedia(raw) {
+  const iv = webcrypto.getRandomValues(new Uint8Array(12));
+  const ct = new Uint8Array(await webcrypto.subtle.encrypt({ name: "AES-GCM", iv }, aesKey, raw));
+  const out = new Uint8Array(12 + ct.length);
+  out.set(iv, 0); out.set(ct, 12);
+  return out;
+}
+const sealedImg = await sealMedia(JPEG_BYTES);
+const sealedVid = await sealMedia(JPEG_BYTES);
 
 const fixture = {
   type: "portal", version: 1, creatorName: "Michelle", apiBase: API,
   products: [
     {
       id: "FF-010", name: "Selladora al vacío extra larga para truncar el nombre",
-      thumb: JPEG, status: "sent",
+      thumb: ENC_IMG, status: "sent",
       script: "SHOT 01\nAbre el cajón y enseña el producto.",
       beats: [
-        { shot: 1, vo: "Mira esto", do_es: "Abre el cajón con la mano derecha.", refFrame: JPEG, ourFrame: JPEG },
-        { shot: 2, vo: "Y listo", do_es: "Señala hacia abajo.", refFrame: JPEG, ourFrame: JPEG }
+        { shot: 1, vo: "Mira esto", do_es: "Abre el cajón con la mano derecha.", refFrame: ENC_IMG, ourFrame: ENC_IMG },
+        { shot: 2, vo: "Y listo", do_es: "Señala hacia abajo.", refFrame: ENC_IMG, ourFrame: ENC_IMG }
       ],
-      shots: [{ shot: 1, takes: 1 }, { shot: 2, takes: 1 }]
+      shots: [{ shot: 1, takes: 1 }, { shot: 2, takes: 1 }],
+      refSrc: ENC_VID
     },
     {
       id: "FF-011", name: "Cortina blackout", thumb: JPEG, status: "sent",
@@ -45,18 +68,9 @@ const fixture = {
   ]
 };
 
-function seal(scene) {
-  return (async () => {
-    const keyBytes = webcrypto.getRandomValues(new Uint8Array(32));
-    const keyText = Buffer.from(keyBytes).toString("base64url");
-    const key = await webcrypto.subtle.importKey("raw", keyBytes, "AES-GCM", false, ["encrypt"]);
-    const iv = webcrypto.getRandomValues(new Uint8Array(12));
-    const ct = new Uint8Array(await webcrypto.subtle.encrypt({ name: "AES-GCM", iv }, key, new TextEncoder().encode(JSON.stringify(scene))));
-    return { keyText, blob: JSON.stringify({ iv: Buffer.from(iv).toString("base64"), ct: Buffer.from(ct).toString("base64") }) };
-  })();
-}
-
-const sealed = await seal(fixture);
+const sceneIv = webcrypto.getRandomValues(new Uint8Array(12));
+const sceneCt = new Uint8Array(await webcrypto.subtle.encrypt({ name: "AES-GCM", iv: sceneIv }, aesKey, new TextEncoder().encode(JSON.stringify(fixture))));
+const sealed = { keyText, blob: JSON.stringify({ iv: Buffer.from(sceneIv).toString("base64"), ct: Buffer.from(sceneCt).toString("base64") }) };
 const TOKEN = "tok-live-michelle";
 const REVOKED = "tok-revoked";
 const EXPIRED = "tok-expired";
@@ -152,6 +166,12 @@ async function open(name, token, opts) {
     const u = new URL(route.request().url());
     if (u.origin === ORIGIN && u.pathname === "/grok-canvas/portal.html") return route.fulfill({ status: 200, contentType: "text/html; charset=utf-8", body: html });
     if (u.origin === ORIGIN && u.pathname === "/grok-canvas/scenes/portaltest.json") return route.fulfill({ status: 200, contentType: "application/json", body: sealed.blob });
+    if (u.origin === ORIGIN && u.pathname === "/grok-canvas/" + IMG_ENC) {
+      return route.fulfill({ status: 200, contentType: "application/octet-stream", body: Buffer.from(sealedImg) });
+    }
+    if (u.origin === ORIGIN && u.pathname === "/grok-canvas/" + VID_ENC) {
+      return route.fulfill({ status: 200, contentType: "application/octet-stream", body: Buffer.from(sealedVid) });
+    }
     if (u.origin === API || u.hostname === "creator-portal-api.example.workers.dev") return handleApi(route);
     errors.push(name + " unexpected request " + u.origin + u.pathname); return route.abort();
   });
@@ -177,6 +197,8 @@ async function open(name, token, opts) {
   assert.ok(names[0].includes("Selladora"));
   assert.ok(await page.locator(".nm").first().evaluate((el) => el.scrollWidth > el.clientWidth || el.textContent.length > 20));
   assert.equal(await page.locator("button.btn", { hasText: "Ver board" }).count() >= 2, true);
+  await page.waitForFunction(() => [...document.querySelectorAll(".card img")].some((i) => (i.src || "").startsWith("blob:")));
+  assert.ok(await page.locator(".card img").count() >= 1);
   await page.screenshot({ path: path.join(SHOTS, "portal-plp.png"), fullPage: true });
   if (MEDIA) { try { fs.copyFileSync(path.join(SHOTS, "portal-plp.png"), path.join(MEDIA, "portal-plp.png")); } catch (e) {} }
   await page.locator("[data-open='FF-010']").click();
@@ -185,6 +207,15 @@ async function open(name, token, opts) {
   assert.deepEqual(ids, ["sec-ref", "sec-board", "sec-script", "sec-up"]);
   assert.match(await page.locator("#sec-board").innerText(), /ACCIÓN/);
   assert.match(await page.locator("#sec-board").innerText(), /Abre el cajón/);
+  assert.match(await page.locator("#sec-board").innerText(), /Referencia/);
+  assert.match(await page.locator("#sec-board").innerText(), /Tu escena/);
+  assert.match(await page.locator("#sec-board").innerText(), /Mira esto/);
+  assert.doesNotMatch(await page.locator("#sec-ref").innerText(), /Video de referencia en el board cifrado|Sin video de referencia/);
+  await page.waitForFunction(() => {
+    const v = document.querySelector("#sec-ref video");
+    const imgs = [...document.querySelectorAll("#sec-board img")];
+    return v && (v.src || "").startsWith("blob:") && imgs.length >= 2 && imgs.every((i) => (i.src || "").startsWith("blob:"));
+  });
   await page.click("#copy-script");
   const copied = await page.evaluate(() => window.__copied);
   assert.ok(copied.some((t) => t.includes("SHOT 01")));
