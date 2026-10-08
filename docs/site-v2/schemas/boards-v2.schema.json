@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jorgedearmas.github.io/grok-canvas/docs/site-v2/schemas/boards-v2.schema.json",
+  "title": "Boards library scene v2",
+  "description": "Plaintext shape BEFORE sealing. Built by build_boards.py (G-3). System pages (portal, manager, hub, filming, feed) are never listed. See ARCHITECTURE.md §7.3.",
+  "type": "object",
+  "required": ["type", "version", "updatedAt", "lanes", "products", "boards"],
+  "additionalProperties": false,
+  "properties": {
+    "type": { "const": "boards" },
+    "version": { "const": 2 },
+    "updatedAt": { "type": "string", "format": "date-time" },
+    "lanes": {
+      "type": "array", "maxItems": 4,
+      "items": {
+        "type": "object", "additionalProperties": false, "required": ["id", "label"],
+        "properties": {
+          "id": { "enum": ["miamix", "bella", "creadoras"] },
+          "label": { "type": "string", "maxLength": 16, "not": { "pattern": "[Bb][Ee][Ll][Ll][Aa]" } }
+        }
+      }
+    },
+    "products": {
+      "type": "object", "maxProperties": 120,
+      "propertyNames": { "pattern": "^[A-Za-z0-9_-]{1,40}$" },
+      "additionalProperties": {
+        "type": "object", "additionalProperties": false, "required": ["name"],
+        "properties": {
+          "name": { "type": "string", "minLength": 2, "maxLength": 60, "not": { "pattern": "^([Pp]roducto|[Vv]ideo)$" } },
+          "thumb": { "type": "string", "pattern": "^data:image/jpeg;base64,[A-Za-z0-9+/]+={0,2}$", "maxLength": 60000 }
+        }
+      }
+    },
+    "boards": {
+      "type": "array", "maxItems": 200,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["id", "product", "lane", "kind", "status", "viewer"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z0-9_-]{1,40}$" },
+          "product": { "type": "string", "pattern": "^[A-Za-z0-9_-]{1,40}$" },
+          "title": { "type": "string", "maxLength": 60, "not": { "pattern": "(\\b[Ff][Ff]-\\d{3}\\b|\\b[Jj][Oo][Bb]-\\d+\\b|[Bb][Ee][Ll][Ll][Aa])" } },
+          "lane": { "enum": ["miamix", "bella", "creadoras"] },
+          "kind": { "enum": ["film", "ai", "guide"] },
+          "status": { "enum": ["preparing", "to_film", "filmed", "editing", "to_publish", "published", "to_approve", "problem", "retired"] },
+          "problem": { "type": "string", "maxLength": 120 },
+          "date": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
+          "viewer": { "enum": ["board", "canvas"] },
+          "ref": {
+            "type": "object", "additionalProperties": false, "required": ["b", "k"],
+            "properties": {
+              "b": { "type": "string", "pattern": "^[A-Za-z0-9_-]{8,64}$" },
+              "k": { "type": "string", "pattern": "^[A-Za-z0-9_-]{43}$" }
+            }
+          },
+          "board": {
+            "description": "v1 compatibility only. Same-origin board URL; MUST NOT contain t= or m= and MUST NOT point to portal/manager/comando/hub.",
+            "type": "string",
+            "pattern": "^https://jorgedearmas\\.github\\.io/grok-canvas/(index|board)\\.html#b=[A-Za-z0-9_-]+&k=[A-Za-z0-9_-]+$"
+          },
+          "missing": { "type": "boolean" }
+        },
+        "allOf": [
+          { "if": { "properties": { "missing": { "const": true } }, "required": ["missing"] }, "then": { "properties": { "status": { "const": "problem" } } }, "else": { "required": ["ref"] } },
+          { "if": { "properties": { "status": { "const": "problem" } }, "required": ["status"] }, "then": { "required": ["problem"] } }
+        ]
+      }
+    }
+  }
+}
