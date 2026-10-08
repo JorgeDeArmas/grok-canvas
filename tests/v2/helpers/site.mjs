@@ -19,6 +19,7 @@ const PIN = {
   filming: { blobId: TOKENS.FIL_B, keyText: TOKENS.FIL_K },
   board: { blobId: "boardblob01xx", keyText: "DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD" },
   canvas: { blobId: TOKENS.CANVAS_B, keyText: TOKENS.CANVAS_K },
+  charts: { blobId: TOKENS.CHARTS_B, keyText: TOKENS.CHARTS_K },
 };
 
 export async function installSite(page, { scenes = {}, worker } = {}) {

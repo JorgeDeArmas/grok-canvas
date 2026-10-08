@@ -241,9 +241,19 @@ export function creatorFeed() {
 
 const CANVAS_B = "canvasblob01";
 const CANVAS_K = "EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE";
+const CHARTS_B = "chartsblob01";
+const CHARTS_K = "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF";
+
+function indexUrl(blob, key) {
+  return `https://jorgedearmas.github.io/grok-canvas/index.html#b=${blob}&k=${key}`;
+}
 
 function canvasUrl() {
-  return `https://jorgedearmas.github.io/grok-canvas/index.html#b=${CANVAS_B}&k=${CANVAS_K}`;
+  return indexUrl(CANVAS_B, CANVAS_K);
+}
+
+function chartsUrl() {
+  return indexUrl(CHARTS_B, CHARTS_K);
 }
 
 /** Hub v3 as published today: no keyring, sub-scenes only in quick/item hrefs. */
@@ -319,6 +329,21 @@ export function boardsV1Live() {
     avatars: [{ id: "miamix", label: "Miami X" }, { id: "bella", label: "Bella" }],
     kinds: [{ id: "film", label: "Grabación" }, { id: "fw", label: "Framework" }],
     boards: [
+      {
+        id: "fd1", name: "Feed", what: "Feed",
+        avatar: "miamix", kind: "film", status: "Board listo", date: "2026-10-08", thumb: JPEG,
+        board: indexUrl(FEED_B, FEED_K),
+      },
+      {
+        id: "bd1", name: "Boards", what: "Boards",
+        avatar: "miamix", kind: "film", status: "Board listo", date: "2026-10-08", thumb: JPEG,
+        board: indexUrl(BRD_B, BRD_K),
+      },
+      {
+        id: "ch1", name: "Solo cifras", what: "KPIs",
+        avatar: "miamix", kind: "film", status: "Board listo", date: "2026-10-08", thumb: JPEG,
+        board: chartsUrl(),
+      },
       {
         id: "fw1", name: "Waffle de cortina", what: "Framework (donor) para Bella",
         avatar: "bella", kind: "film", status: "Board listo", date: "2026-10-01", thumb: JPEG,
@@ -435,4 +460,4 @@ export const CATALOG = {
   "creator-feed-live": creatorFeedLive,
 };
 
-export const TOKENS = { MAIL, API, MGR, OWN, CRE, FEED_B, FEED_K, BRD_B, BRD_K, FIL_B, FIL_K, JPEG, CANVAS_B, CANVAS_K };
+export const TOKENS = { MAIL, API, MGR, OWN, CRE, FEED_B, FEED_K, BRD_B, BRD_K, FIL_B, FIL_K, JPEG, CANVAS_B, CANVAS_K, CHARTS_B, CHARTS_K };

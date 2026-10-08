@@ -11,7 +11,7 @@ import { enqueue, undo, retry as retryOut, listOutbox, pendingCount, oldestPendi
 import { adaptRoot, fromFilming, fromBoards, mergeFilming, loadDone, saveDone, loadPicks, savePicks, loadTicks, saveTicks, saveLane, loadLane, loadWant, saveWant, saveFeedAvatar, jorgeVideos } from "../lib/model.js";
 import * as worker from "../lib/worker-api.js";
 import { runUpload } from "../lib/upload.js";
-import { adaptCanvasScene } from "../lib/board.js";
+import { adaptCanvasScene, boardViewerKind } from "../lib/board.js";
 import { AppBar, TabBar, Banner, toastHtml, Dialog, ErrorState, sheetChrome, Button, StatusChip, Thumb, InitialAvatar, SayBox } from "../lib/components.js";
 import * as bienvenida from "../lib/screens/bienvenida.js";
 import * as dashboard from "../lib/screens/dashboard.js";
@@ -558,6 +558,20 @@ async function loadBoard(ref) {
   try {
     const blob = await fetchScene(ref.b);
     const scene = await decryptScene(blob, ref.k);
+    if (scene.type === "creator-feed") {
+      store.feed = normalizeFeed(scene);
+      store.feedBlob = ref.b;
+      store.feedKey = ref.k;
+      store.hasFeedKey = true;
+      setRoute({ name: "feed" });
+      render();
+      return;
+    }
+    if (scene.type === "boards") {
+      setRoute({ name: "boards" });
+      render();
+      return;
+    }
     const adapted = adaptCanvasScene(scene, store.boardContext || {});
     if (!adapted || adapted.kind !== "board") {
       location.assign(`../index.html#b=${encodeURIComponent(ref.b)}&k=${encodeURIComponent(ref.k)}`);
@@ -785,12 +799,30 @@ async function loadSceneRef(role) {
   return { scene, key: ref.k, blob: ref.b, f: ref.f || "" };
 }
 
+async function classifyBoardViewers() {
+  const list = (store.boards && store.boards.boards) || [];
+  let changed = false;
+  await Promise.all(list.map(async (b) => {
+    if (b.viewer !== "probe" || !b.ref?.b || !b.ref?.k) return;
+    try {
+      const blob = await fetchScene(b.ref.b);
+      const scene = await decryptScene(blob, b.ref.k);
+      const next = boardViewerKind(scene) === "canvas" ? "canvas" : "board";
+      if (b.viewer !== next) { b.viewer = next; changed = true; }
+    } catch {
+      if (b.viewer !== "board") { b.viewer = "board"; changed = true; }
+    }
+  }));
+  if (changed && store.route?.name === "boards") render();
+}
+
 async function loadBoards() {
   try {
     const got = await loadSceneRef("boards");
     if (!got) return;
     store.boards = fromBoards(got.scene);
     store.boardsLane = store.boardsLane || loadLane();
+    await classifyBoardViewers();
   } catch { store.feedError = true; }
 }
 
