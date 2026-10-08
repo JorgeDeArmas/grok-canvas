@@ -67,12 +67,12 @@ const state = {
   sessions: [{
     id: "sess-demo-ana", creator_name: "Ana", shoot_date: "2026-10-11",
     expires_at: fixture.creators[0].expiresAt, revoked_at: null,
-    jobs: [{ job_id: "FF-020", name: "Sérum", status: "uploaded" }],
+    jobs: [{ job_id: "FF-020", status: "opened" }],
     takes: [{ id: "take-ana-1", job_id: "FF-020", shot: 1, take: 1, status: "uploaded", redo_reason: "" }]
   }, {
     id: "sess-demo-camila", creator_name: "Camila", shoot_date: "2026-10-18",
     expires_at: fixture.creators[1].expiresAt, revoked_at: null,
-    jobs: [{ job_id: "FF-021", name: "Crema", status: "sent" }],
+    jobs: [{ job_id: "FF-021", status: "sent" }],
     takes: []
   }]
 };
@@ -141,7 +141,10 @@ assert.match(await page.locator("main").innerText(), /Aprobar/);
 assert.match(await page.locator("main").innerText(), /Copiar link/);
 assert.match(await page.locator("main").innerText(), /Extender/);
 assert.match(await page.locator("main").innerText(), /Sérum/);
+assert.match(await page.locator("main").innerText(), /Crema/);
+assert.match(await page.locator("main").innerText(), /Abierto/);
 assert.doesNotMatch(await page.locator("main").innerText(), /FF-020/);
+assert.doesNotMatch(await page.locator("main").innerText(), /FF-021/);
 assert.equal(await page.locator("#nCreators").innerText(), "2");
 await page.locator('[data-approve="take-ana-1"]').click();
 await page.waitForFunction(() => document.body.innerText.includes("Aprobado"));
