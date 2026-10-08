@@ -156,9 +156,9 @@ Unknown route → `#/dashboard` (or `#/bienvenida` if there is no root).
 
 1. **Tabs** switch instantly (no slide). Each tab keeps its own scroll position in memory. Tapping the selected tab scrolls to the top.
 2. **Push screens** (Feed, Boards, Board, Ajustes) slide in from the right and hide the bottom bar. «‹» calls `history.back()` when the previous entry is in-app, else replaces with the documented back target.
-3. **Sheets** push a history entry (`#/…?sheet` state via `history.pushState` with `state.sheet`) so Android back and the browser back button close the sheet first. Closing a sheet any other way (✕, scrim, Escape, swipe down) calls `history.back()` if the sheet pushed the entry.
+3. **Sheets** push a history entry (`history.pushState({sheet: "<name>"}, "", location.href)`, same URL) so Android back and the browser back button close the sheet first. Routed sheets (`#/producto/<pid>`, `#/creadoras/<sid>/tomas`) push their own route instead. Closing a sheet any other way (✕, scrim, Escape, swipe down) calls `history.back()` if the sheet pushed the entry.
 4. **Deep links from old pages** land on their screen (e.g. `grabacion.html#…` → `#/grabar`), never on Dashboard.
-5. **Resume from background** (`visibilitychange` → visible) keeps the current route and refreshes the data. **Cold start of the installed app** (`display-mode: standalone` and `performance.navigation`/`navigation.type === "navigate"`) goes to `#/dashboard`.
+5. **Resume from background** (`visibilitychange` → visible) keeps the current route and refreshes the data. **Cold start** (a new page load whose hash is empty or is a plain tab route, i.e. not a key import or a deep link like `#/board/…`) goes to `#/dashboard`, in both standalone and browser modes.
 6. External links (TikTok, TikTok Shop, Gmail, legacy `index.html` boards) open with `target="_blank" rel="noopener noreferrer"`. In iOS standalone they open in the in-app Safari sheet, which is expected.
 7. **≤ 2 taps rule** (QA NAV-05): from any tab, Feed = Dashboard › Feed, Boards = Dashboard › Boards or Grabar › Boards, a Board = Grabar › card, Ajustes = Dashboard › ⚙.
 
