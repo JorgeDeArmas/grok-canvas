@@ -30,7 +30,7 @@ function writeVersion(ver) {
   fs.writeFileSync(swPath, sw);
 }
 
-const ver = `2.0.0+${hashShell()}`;
+const ver = `2.0.1+${hashShell()}`;
 if (process.argv.includes("--check")) {
   const cur = fs.readFileSync(path.join(ROOT, "app/version.js"), "utf8");
   if (!cur.includes(hashShell())) {

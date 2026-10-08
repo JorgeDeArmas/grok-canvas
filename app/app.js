@@ -1,7 +1,7 @@
 import { html, raw, setHtml } from "../lib/html.js";
 import { t } from "../lib/copy.js";
 import { icon } from "../lib/icons.js";
-import { okHost, parseHash, hashIsKeys, copyText, share, classifyLink } from "../lib/core.js";
+import { okHost, parseHash, hashIsKeys, copyText, share, classifyLink, fetchScene, decryptScene, parseBoardRef, hydrateFeedMedia } from "../lib/core.js";
 import { relativePast, clockTimeEt, expiryLabel, todayEt } from "../lib/dates.js";
 import {
   importFromHash, importFromPastedText, decryptSceneFor, getKey, allKeys,
@@ -11,6 +11,7 @@ import { enqueue, undo, retry as retryOut, listOutbox, pendingCount, oldestPendi
 import { adaptRoot, fromFilming, fromBoards, mergeFilming, loadDone, saveDone, loadPicks, savePicks, loadTicks, saveTicks, saveLane, loadLane, loadWant, saveWant, saveFeedAvatar, jorgeVideos } from "../lib/model.js";
 import * as worker from "../lib/worker-api.js";
 import { runUpload } from "../lib/upload.js";
+import { adaptCanvasScene } from "../lib/board.js";
 import { AppBar, TabBar, Banner, toastHtml, Dialog, ErrorState, sheetChrome, Button, StatusChip, Thumb, InitialAvatar, SayBox } from "../lib/components.js";
 import * as bienvenida from "../lib/screens/bienvenida.js";
 import * as dashboard from "../lib/screens/dashboard.js";
@@ -212,6 +213,7 @@ export function render() {
     ${store.toast ? toastHtml(store.toast.msg, store.toast.undo) : raw("")}
   `;
   setHtml(el, chrome);
+  if (r.name === "feed" && store.feedKey) hydrateFeedMedia(el, store.feedKey);
 }
 
 function screenBody(r) {
@@ -528,29 +530,40 @@ async function doTick(id) {
   render();
 }
 
+function pieceRef(v) {
+  if (v?.boardRef?.b && v.boardRef.k && !v.boardRef.blocked) return v.boardRef;
+  if (!v?.href) return null;
+  const p = parseBoardRef(v.href);
+  return p && !p.blocked && p.b ? p : null;
+}
+
 function openVideoBoard(id) {
   const v = jorgeVideos(store.model).find((x) => x.id === id);
-  if (v?.boardRef?.b) { setRoute({ name: "board", id: "v:" + id }); loadBoard(v.boardRef); return; }
-  if (v?.href) window.open(v.href, "_blank", "noopener,noreferrer");
+  const ref = pieceRef(v);
+  if (!ref) return;
+  store.boardContext = { job: v.job || String(v.id || "").replace(/^rec:/, ""), name: v.productName || v.title || "" };
+  setRoute({ name: "board", id: "v:" + id });
+  loadBoard(ref);
 }
 
 function openLibBoard(id) {
   const b = (store.boards?.boards || []).find((x) => x.id === id);
-  if (!b) return;
-  if (b.missing) return;
-  if (b.viewer === "canvas" && b.ref) {
-    window.open(`../index.html#b=${b.ref.b}&k=${b.ref.k}`, "_blank", "noopener,noreferrer");
-    return;
-  }
+  if (!b || b.missing || !b.ref?.b || !b.ref?.k) return;
+  store.boardContext = { job: b.job || b.code || "", name: b.title || "" };
   setRoute({ name: "board", id });
-  if (b.ref) loadBoard(b.ref);
+  loadBoard(b.ref);
 }
 
 async function loadBoard(ref) {
   try {
-    const { decryptScene, fetchScene } = await import("../lib/core.js");
     const blob = await fetchScene(ref.b);
-    store.board = await decryptScene(blob, ref.k);
+    const scene = await decryptScene(blob, ref.k);
+    const adapted = adaptCanvasScene(scene, store.boardContext || {});
+    if (!adapted || adapted.kind !== "board") {
+      location.assign(`../index.html#b=${encodeURIComponent(ref.b)}&k=${encodeURIComponent(ref.k)}`);
+      return;
+    }
+    store.board = adapted.board;
     store.boardRole = store.model?.ownerToken ? "owner" : "viewer";
     render();
   } catch {
@@ -710,14 +723,14 @@ async function loadRoot() {
     store.bootError = null;
     store.keyChanged = false;
     store.refreshError = false;
-    if (scene.keyring?.filming && await getKey("filming")) {
-      try {
-        const f = await decryptSceneFor("filming");
-        store.model = mergeFilming(store.model, fromFilming(f.scene));
-        store.filmBlob = f.row.b;
-      } catch { /* keep v3 videos */ }
-    }
-    store.hasFeedKey = !!(await getKey("feed"));
+    try {
+      const film = await loadSceneRef("filming");
+      if (film) {
+        store.model = mergeFilming(store.model, fromFilming(film.scene));
+        store.filmBlob = film.blob;
+      }
+    } catch { /* keep hub videos */ }
+    store.hasFeedKey = !!(store.model.keyring && store.model.keyring.feed) || !!(await getKey("feed"));
     store.keys = await allKeys();
     store.loading = false;
     await loadBoards();
@@ -758,25 +771,38 @@ async function refreshLive() {
   render();
 }
 
+async function loadSceneRef(role) {
+  try {
+    if (await getKey(role)) {
+      const { scene, row } = await decryptSceneFor(role);
+      return { scene, key: row.key, blob: row.b, f: row.f || "" };
+    }
+  } catch { /* memory ref still works on the current scene */ }
+  const ref = store.model && store.model.keyring && store.model.keyring[role];
+  if (!ref || !ref.b || !ref.k) return null;
+  const blob = await fetchScene(ref.b);
+  const scene = await decryptScene(blob, ref.k);
+  return { scene, key: ref.k, blob: ref.b, f: ref.f || "" };
+}
+
 async function loadBoards() {
   try {
-    if (await getKey("boards")) {
-      const { scene } = await decryptSceneFor("boards");
-      store.boards = fromBoards(scene);
-      store.boardsLane = store.boardsLane || loadLane();
-    }
+    const got = await loadSceneRef("boards");
+    if (!got) return;
+    store.boards = fromBoards(got.scene);
+    store.boardsLane = store.boardsLane || loadLane();
   } catch { store.feedError = true; }
 }
 
 async function loadFeed() {
   try {
-    if (await getKey("feed")) {
-      const { scene, row } = await decryptSceneFor("feed");
-      store.feed = normalizeFeed(scene);
-      store.feedBlob = row.b;
-      store.feedF = row.f;
-      store.hasFeedKey = true;
-    }
+    const got = await loadSceneRef("feed");
+    if (!got) return;
+    store.feed = normalizeFeed(got.scene);
+    store.feedBlob = got.blob;
+    store.feedF = got.f;
+    store.feedKey = got.key;
+    store.hasFeedKey = true;
   } catch { /* ignore */ }
 }
 

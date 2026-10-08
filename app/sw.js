@@ -1,4 +1,4 @@
-const VERSION = "2.0.0+4762ed2";
+const VERSION = "2.0.1+2a8c5d4";
 const SHELL = "shell-" + VERSION;
 const SCENES = "scenes-v1";
 const MEDIA = "media-v1";
@@ -26,6 +26,15 @@ const PRECACHE = [
   "../lib/worker-api.js",
   "../lib/upload.js",
   "../lib/board.js",
+  "../lib/screens/dashboard.js",
+  "../lib/screens/grabar.js",
+  "../lib/screens/creadoras.js",
+  "../lib/screens/feed.js",
+  "../lib/screens/boards.js",
+  "../lib/screens/board-screen.js",
+  "../lib/screens/ajustes.js",
+  "../lib/screens/bienvenida.js",
+  "../lib/screens/note.js",
 ];
 
 self.addEventListener("install", (event) => {
