@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="referrer" content="no-referrer">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' blob: https://cdn.jsdelivr.net https://raw.githubusercontent.com https://raw.githack.com https://rawcdn.githack.com; media-src 'self' blob: https://cdn.jsdelivr.net https://raw.githubusercontent.com https://raw.githack.com https://rawcdn.githack.com; connect-src 'self' https://cdn.jsdelivr.net https://raw.githubusercontent.com https://raw.githack.com https://rawcdn.githack.com https://webhook.site; base-uri 'none'; form-action 'none'; object-src 'none'; frame-ancestors 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' blob: https://cdn.jsdelivr.net; media-src 'self' blob: https://cdn.jsdelivr.net; connect-src 'self' https://cdn.jsdelivr.net https://webhook.site; base-uri 'none'; form-action 'none'; object-src 'none'; frame-ancestors 'none'">
 <meta name="theme-color" content="#f2f2f7">
 <title>Canvas</title>
 <style>
@@ -157,10 +157,7 @@ function esc(s) {
 }
 
 const MEDIA_HOSTS = new Set([
-  "cdn.jsdelivr.net",
-  "raw.githubusercontent.com",
-  "raw.githack.com",
-  "rawcdn.githack.com"
+  "cdn.jsdelivr.net"
 ]);
 const PIPE_STATES = new Set(["done", "now", "wait"]);
 const CALLOUT_TONES = new Set(["info", "warn", "good", "bad"]);
@@ -723,16 +720,19 @@ async function load() {
     return;
   }
   const id = sec.b.replace(/[^a-zA-Z0-9_-]/g, "");
-  const sameHost = location.hostname === "raw.githack.com" || location.hostname.endsWith("github.io") || location.hostname === "localhost" || location.hostname === "127.0.0.1";
-  const rawUrl = sameHost
-    ? `scenes/${id}.json?t=${Date.now()}`
-    : `https://raw.githack.com/JorgeDeArmas/grok-canvas/main/scenes/${id}.json?t=${Date.now()}`;
-  const url = safeHttpsUrl(rawUrl);
+  const sameHost = location.hostname.endsWith("github.io") || location.hostname === "localhost" || location.hostname === "127.0.0.1";
+  const rawUrl = sameHost ? `scenes/${id}.json?t=${Date.now()}` : "";
+  const url = rawUrl;
   try {
     if (!url) throw new Error("url");
     const res = await fetch(url, { cache: "no-store", referrerPolicy: "no-referrer" });
     if (!res.ok) throw new Error(String(res.status));
-    render(await decryptScene(await res.json(), sec.k));
+    const next = await decryptScene(await res.json(), sec.k);
+    if (next && next.type === "board") {
+      location.replace("app/" + location.hash);
+      return;
+    }
+    render(next);
   } catch (err) {
     if (document.activeElement && document.activeElement.tagName === "TEXTAREA") return;
     renderedScene = "";

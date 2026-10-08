@@ -1,0 +1,26 @@
+{
+  "id": "/grok-canvas/app/",
+  "name": "Comando",
+  "short_name": "Comando",
+  "description": "Tu día, grabación, creadoras, feed y boards.",
+  "lang": "es-US",
+  "dir": "ltr",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F2F2F7",
+  "theme_color": "#F2F2F7",
+  "categories": ["productivity", "business"],
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ],
+  "shortcuts": [
+    { "name": "Grabar", "url": "./#/grabar", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Creadoras", "url": "./#/creadoras", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Feed", "url": "./#/feed", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] }
+  ]
+}
