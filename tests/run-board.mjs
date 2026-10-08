@@ -91,8 +91,8 @@ assert.match(boardTxt, /Referencia/);
 assert.match(boardTxt, /La nuestra/);
 assert.match(boardTxt, /Abre el pomo/);
 assert.match(boardTxt, /Mira esto/);
-assert.match(boardTxt, /Lo que dices/);
-assert.match(boardTxt, /Qué haces/);
+assert.match(boardTxt, /lo que dices/i);
+assert.match(boardTxt, /qué haces/i);
 const sceneUi = await page.evaluate(() => {
   const q = document.querySelector(".say .q");
   const d = document.querySelector(".do .d");

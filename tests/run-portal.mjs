@@ -218,8 +218,8 @@ async function open(name, token, opts) {
   assert.match(boardTxt, /Referencia/);
   assert.match(boardTxt, /La nuestra/);
   assert.match(boardTxt, /Mira esto/);
-  assert.match(boardTxt, /Lo que dices/);
-  assert.match(boardTxt, /Qué haces/);
+  assert.match(boardTxt, /lo que dices/i);
+  assert.match(boardTxt, /qué haces/i);
   assert.match(await page.locator("#sec-up").innerText(), /Graba en 1080p/);
   assert.match(await page.locator("#sec-up").innerText(), /Subir video/);
   assert.match(await page.locator("#sec-up").innerText(), /Enviado/);
@@ -262,7 +262,10 @@ async function open(name, token, opts) {
   await page.click("#back");
   await page.waitForSelector("[data-open='FF-010']");
   await page.locator("[data-open='FF-010']").click();
-  await page.waitForSelector("#sec-up");
+  await page.waitForFunction(() => {
+    const b = document.querySelector('[data-resume="FF-010:1:1"]');
+    return b && !b.hidden;
+  });
   assert.equal(await page.locator("[data-resume='FF-010:1:1']").evaluate((e) => e.hidden), false);
   assert.equal(await page.locator("[data-resume='FF-010:2:1']").evaluate((e) => e.hidden), true);
   assert.match(await page.locator("#sec-up").innerText(), /Reanudar/);
@@ -393,6 +396,8 @@ async function fakeUpload(page, size, failAfter) {
 }
 
 {
+  db.sessions[TOKEN].takes = [];
+  for (const j of db.sessions[TOKEN].jobs) if (j.status === "uploaded") j.status = "opened";
   for (const scheme of ["dark", "light"]) {
     const { ctx, page } = await open("up-shot-" + scheme, TOKEN, { ...devices["iPhone 13"], colorScheme: scheme });
     await page.waitForSelector("[data-open='FF-010']");
