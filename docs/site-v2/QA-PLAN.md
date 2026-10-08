@@ -61,7 +61,7 @@ All names are invented: creators **Ana** and **Eva**, handles `@demo.creator` an
 | ID | Type / version | Purpose |
 |---|---|---|
 | `root-v3` | `hub` v3 (today's shape: `sections`, `quick`, `counters`, `footer`, a `creadoras` section, `rec:open`) | adapter tests and migration (§7) |
-| `root-v4` | `comando` v4, full: 6 tasks of every kind, 9 products (one overdue, one undated, one dropped), 5 videos for Jorge (one overdue day, two places on one day, one not ready), 1 creator-owned video, brand groups (7 waiting, 2 closed), 4 grok items (one duplicates a product stage ✗ in the generator, the viewer must drop it), 1 alert, `keyring` (boards, feed + `f`, filming), `managerToken`, no `ownerToken` |
+| `root-v4` | `comando` v4 | Full: 6 tasks of every kind, 9 products (one overdue, one undated, one dropped), 5 videos for Jorge (one overdue day, two places on one day, one not ready), 1 creator-owned video, brand groups (7 waiting, 2 closed), 4 grok items (one duplicates a product stage ✗ in the generator, the viewer must drop it), 1 alert, `keyring` (boards, feed + `f`, filming), `managerToken`, no `ownerToken` |
 | `root-v4-owner` | `root-v4` + `ownerToken` | owner upload |
 | `root-v4-nomgr` | `root-v4` without `managerToken` | read-only Creadoras |
 | `root-v4-empty` | no tasks, products, videos, creators, brands, grok, alerts | empty states |
@@ -80,6 +80,8 @@ All names are invented: creators **Ana** and **Eva**, handles `@demo.creator` an
 | `manager-v1` | today's manager scene | `manager.html#…&m=…` redirect |
 | `creator-feed` | today's `tests/fixtures/creator-feed.json` (synthetic) with both lanes, an empty lane reason, an unidentified product, a video with repeated sales numbers | Feed |
 | `canvas-blocks` | a generic `index.html` scene (blocks, GO/changes) | IDX |
+
+**Optional local QA with real data** (never in CI, never committed): as today, `SCENE_FILE=/path/outside/repo/scene.json npx playwright test --grep @real` seals a decrypted scene from outside the repo at test time and runs the render-only specs tagged `@real`. Screenshots from these runs go to a local folder outside the repo and are never attached to a PR.
 
 Media fixtures: a 2-second synthetic MP4 (generated at test time with `ffmpeg` if available, else a checked-in 30 KB synthetic clip encrypted at test time) and synthetic JPEG frames, sealed with the scene key. **Nothing from `assets/private/` is ever used.**
 
@@ -108,6 +110,8 @@ Media fixtures: a 2-second synthetic MP4 (generated at test time with `ffmpeg` i
 | `phone-chromium-light` | Chromium | 390×844 | 3 | light | Android Chrome UA (Pixel 7), `isMobile`, `hasTouch` | all functional specs (catches engine differences), install prompt |
 | `pwa-chromium` | Chromium | 390×844 | 3 | light | `serviceWorkers: "allow"`, Android UA | PWA suite (§8) only |
 | `desktop-chromium` | Chromium | 1280×800 | 1 | light, plus a dark pass of DSK-01 | desktop UA | desktop sanity (DSK-01, NAV-05, keyboard A11Y-04) |
+
+DSK-02 runs inside `phone-chromium-light` with a per-test viewport override of 360×740.
 | `static` | Node | — | — | — | — | S-suites |
 
 ### 3.2 Platform exclusions (the only allowed skips)
@@ -154,10 +158,10 @@ Media fixtures: a 2-second synthetic MP4 (generated at test time with `ffmpeg` i
 | HR-05 | One shared board template | BRD-T-07, SEC-07 |
 | HR-06 | «Subir video» is a filled primary button | UPL-01 |
 | HR-07 | Modern UI, consistent icons, no emoji | ICO-01, THM-01, A11Y-02 |
-| HR-08 | Phone-first 390×844 | every W/C project, A11Y-03, A11Y-05 |
+| HR-08 | Phone-first 390×844 | every W/C project, DSK-02 (360 px), A11Y-03, A11Y-05 |
 | HR-09 | Spanish, plain, minimal text | VOC-05, DAT-04 |
 | HR-10 | «Bella» → «Creadoras» everywhere | VOC-05, BRD-02, FED-02, GEN-03 |
-| HR-11 | Installable PWA with all features (Feed included) | PWA-01…12, NAV-05, M-01…M-08 |
+| HR-11 | Installable PWA with all features (Feed included) | PWA-01…13, NAV-05, M-01…M-08 |
 | HR-12 | Privacy model preserved | SEC-01…10, PWA-02, PWA-07, PWA-08 |
 | HR-13 | Existing links and the active creator session keep working | LNK-01…10, MIG-01…06, POR-*, UPL-09 |
 
@@ -176,6 +180,7 @@ Media fixtures: a 2-second synthetic MP4 (generated at test time with `ffmpeg` i
 | NAV-05 | From each tab, the test reaches Feed, Boards, a Board and Ajustes in ≤ 2 taps (ARCHITECTURE §3.2 rule 7). Push screens hide the tab bar; «‹» returns to the previous route; with no in-app history «‹» goes to the documented back target. Android back (history back) closes an open sheet before leaving the screen. | W C D |
 | THM-01 | Light and dark projects: `:root` tokens resolve to PRD §3.1 values (sample `--bg`, `--surface`, `--text`, `--accent`). Ajustes › Tema «Oscuro» on a light system → dark tokens, persisted across reload; «Automático» follows `prefers-color-scheme` live. Feed background is dark in both themes. `theme-color` meta matches the theme. | W C |
 | DSK-01 | At 1280×800 (light and dark): content is a single centered column of max-width 600 px, no horizontal scroll, the tab bar is centered under the column, sheets are centered dialogs ≤ 600 px, Feed cards are centered 9:16 with letterboxing. | D |
+| DSK-02 | At 360×740 (smallest supported phone): every screen in §14 has no horizontal scroll, no overlapping controls, and the two Atajos tiles and the VideoCard buttons still fit side by side (or wrap without clipping). | C |
 
 ### 5.2 Onboarding and keyring (ONB)
 
@@ -462,6 +467,7 @@ Runs in `pwa-chromium` against the repo served through `context.route` (Chromium
 | PWA-10 | Kill switch: serving the documented unregister `sw.js` → after one load the SW is gone, caches are cleared, the app still works online. | PWA |
 | PWA-11 | Install UX: Android UA + `beforeinstallprompt` (dispatched) → banner «Instala Comando» + «Instalar» → `prompt()` called; hidden after `appinstalled`. iOS Safari UA not standalone → banner «Instala Comando en tu iPhone» + «Ver cómo» → install sheet; dismiss → hidden for 14 days (clock). Standalone → no banner, Ajustes «Instalada ✓». Desktop → no banner, Ajustes row only. | PWA W |
 | PWA-12 | `app/index.html` has the apple meta tags, `apple-touch-icon` 180, 10 `apple-touch-startup-image` links whose media queries and files match ARCHITECTURE §12.2; `make-icons.mjs --check` reproduces `ICONS.sha256`. | S |
+| PWA-13 | Installability: the CDP call `Page.getInstallabilityErrors` returns an empty list for `app/` (this replaces the Lighthouse PWA category, which Lighthouse 12 removed). | PWA |
 
 ---
 

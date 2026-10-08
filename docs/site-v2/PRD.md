@@ -300,25 +300,25 @@ Each component lists its props, variants, anatomy and states. Every interactive 
 
 | # | Component | Props | Variants / anatomy | States / behavior |
 |---|---|---|---|---|
-| C-01 | `AppBar` | `title, variant: large|compact, back?, actions[], status?` | §2.2 | collapse on scroll |
+| C-01 | `AppBar` | `title, variant: large\|compact, back?, actions[], status?` | §2.2 | collapse on scroll |
 | C-02 | `TabBar` | `items[{id,label,icon,badge}], current` | §2.3 | badge hidden at 0 |
 | C-03 | `Section` | `title, icon?, count?, collapsible?, collapsedLabel?` | Title 17/22 semibold + optional 16 px icon in muted. **No count in the header** unless collapsed («Ver 6 más»). Content on a `--surface` card, radius 16, `--e-1`. | collapsed / expanded (chevron rotates) |
-| C-04 | `ListRow` | `leading: thumb|icon|none, title, meta?, trailing: button|chip|chevron|toggle|none, tone?, onTap` | min-height 64; leading 48×48 radius 12 (icon tile: 48×48 `--tint-{tone}` with a 22 px icon in its ink); title 16/22 600, one line with ellipsis; meta 14/19 `--text-2`, max 2 lines; a hairline between rows (inset 76 px) | pressed; removal animation (fade + 24 px slide right, 200 ms); `role="button"` + `tabindex=0` when the whole row is tappable and has no trailing button; when it has a trailing button the row itself isn't a button (avoids nested buttons) and the title becomes the tap target for detail |
+| C-04 | `ListRow` | `leading: thumb\|icon\|none, title, meta?, trailing: button\|chip\|chevron\|toggle\|none, tone?, onTap` | min-height 64; leading 48×48 radius 12 (icon tile: 48×48 `--tint-{tone}` with a 22 px icon in its ink); title 16/22 600, one line with ellipsis; meta 14/19 `--text-2`, max 2 lines; a hairline between rows (inset 76 px) | pressed; removal animation (fade + 24 px slide right, 200 ms); `role="button"` + `tabindex=0` when the whole row is tappable and has no trailing button; when it has a trailing button the row itself isn't a button (avoids nested buttons) and the title becomes the tap target for detail |
 | C-05 | `Thumb` | `src (data: or decrypted blob:), size, alt=""` | object-fit cover, `--surface-pressed` placeholder | loading: shimmer placeholder; error or invalid src: the same plain placeholder, never a broken-image glyph (fixes B-10) |
-| C-06 | `StatusChip` | `status (entity+id) | {text,tone}` | pill 24 px tall, padding 0 10, 16 px icon + 12/16 600 label; background `--tint-{tone}`, ink `--{tone}` | static |
+| C-06 | `StatusChip` | `status (entity+id) \| {text,tone}` | pill 24 px tall, padding 0 10, 16 px icon + 12/16 600 label; background `--tint-{tone}`, ink `--{tone}` | static |
 | C-07 | `Badge` | `count` | §2.3 | — |
-| C-08 | `Button` | `kind: primary|secondary|tertiary|destructive|success, size: md|lg, icon?, label, full?` | **primary**: `--primary` fill, white ink, 600; **secondary**: `--surface-pressed` fill, `--text` ink; **tertiary**: transparent, `--link` ink; **destructive**: transparent with a 1.5 px `--bad` border and `--bad` ink (filled `--bad` with white ink only inside the confirm dialog); **success** (the post-action state, e.g. «Anotado»): `--tint-good` fill, `--good` ink, `circle-check` icon. md = 44 tall, radius 12, 15/20; lg = 52 tall, radius 14, 17/22, full width | pressed; busy (spinner replaces the icon, label stays, `aria-busy=true`) |
+| C-08 | `Button` | `kind: primary\|secondary\|tertiary\|destructive\|success, size: md\|lg, icon?, label, full?` | **primary**: `--primary` fill, white ink, 600; **secondary**: `--surface-pressed` fill, `--text` ink; **tertiary**: transparent, `--link` ink; **destructive**: transparent with a 1.5 px `--bad` border and `--bad` ink (filled `--bad` with white ink only inside the confirm dialog); **success** (the post-action state, e.g. «Anotado»): `--tint-good` fill, `--good` ink, `circle-check` icon. md = 44 tall, radius 12, 15/20; lg = 52 tall, radius 14, 17/22, full width | pressed; busy (spinner replaces the icon, label stays, `aria-busy=true`) |
 | C-09 | `FileButton` («Subir video») | `accept="video/*", label, onFile` | A **primary lg full-width** button with the `upload` icon; it wraps a visually hidden `<input type=file>` covering the button (iOS needs a real input tap) | busy while preparing; hidden when the take is closed |
 | C-10 | `RoundCheck` (✓) | `label (aria), onTap` | 44×44 circle, 1.5 px `--line` border, `check` 20 px in `--good` | → row removal |
 | C-11 | `Segmented` | `options[{id,label,count?}], value` | a `--surface-pressed` track, radius 12, 3 px padding; segments ≥ 44 tall, 15/20 600; the selected one is `--surface` with `--e-1`; counts in 13/18 `--muted` after the label | `role="tablist"` / `role="tab"` + `aria-selected`; arrow keys move between segments |
 | C-12 | `FilterChip` | `label, count?, selected` | pill 36 visual (44 hit), selected = `--text` fill with `--surface` ink | toggles |
-| C-13 | `Sheet` | `title, subtitle?, leading?, size: auto|full, footer?` | from the bottom, radius 20 top, grabber 36×5, header (title 17/22 600 + ✕), scrollable body, sticky footer; max-height `100dvh − 24px − safe-top` | open/close 280 ms; swipe down on the header or grabber > 80 px closes; Escape closes; the scrim tap closes (except when a text input has content: then it asks «¿Descartar la nota?» [Seguir escribiendo] [Descartar]); focus trapped; focus returns to the opener; pushes a history entry |
+| C-13 | `Sheet` | `title, subtitle?, leading?, size: auto\|full, footer?` | from the bottom, radius 20 top, grabber 36×5, header (title 17/22 600 + ✕), scrollable body, sticky footer; max-height `100dvh − 24px − safe-top` | open/close 280 ms; swipe down on the header or grabber > 80 px closes; Escape closes; the scrim tap closes (except when a text input has content: then it asks «¿Descartar la nota?» [Seguir escribiendo] [Descartar]); focus trapped; focus returns to the opener; pushes a history entry |
 | C-14 | `Dialog` (confirm) | `title, body?, confirmLabel, confirmKind, cancelLabel` | centered card, max-width 320, two buttons stacked (confirm on top, full width) | `role="alertdialog"`; Escape = cancel |
 | C-15 | `ActionSheet` | `actions[{label, icon, kind}]` | a bottom sheet listing 52 px rows + «Cancelar» | — |
 | C-16 | `Toast` | `message, undo?` | §2.5 | — |
 | C-17 | `Banner` | `tone, icon, text, actions[], dismissible` | full width, radius 12, `--tint-{tone}`, 14/19 | — |
 | C-18 | `EmptyState` | `icon, title, body?, action?` | a 72 px tinted circle with a 40 px icon, title 17/22 600, body 15/20 `--text-2` (max 2 lines), optional secondary button | — |
-| C-19 | `Skeleton` | `lines | rows: n` | `--surface-pressed` blocks with a shimmer (static under reduced motion) | shown for ≤ 10 s, then an error state |
+| C-19 | `Skeleton` | `lines \| rows: n` | `--surface-pressed` blocks with a shimmer (static under reduced motion) | shown for ≤ 10 s, then an error state |
 | C-20 | `ProgressBar` | `value 0–1` | 6 px tall, radius 3, `--surface-pressed` track, `--primary` fill | `role="progressbar"` with `aria-valuenow` |
 | C-21 | `SayBox` («Lo que dices») | `text` | `--say-bg`, 1.5 px `--say-line` border, radius 16, padding 16; label row: `quote` 16 px + «LO QUE DICES» (`--t-label`, `--link`); text `--t-say` `--text` inside `<blockquote>` | — |
 | C-22 | `DoLine` («Qué haces») | `text` | no box; label row: `hand` 16 px + «QUÉ HACES» (`--t-label`, `--muted`); text 15/20 `--text-2` | — |
@@ -333,13 +333,13 @@ Each component lists its props, variants, anatomy and states. Every interactive 
 | C-31 | `FeedCard` | `card` | §8.12 | — |
 | C-32 | `ProductPill` | `product` | §8.12 | — |
 | C-33 | `MetricRail` | `metrics` | §8.12 | — |
-| C-34 | `HeroCard` («Lo próximo») | `kind, title, meta, thumb|icon, action` | `--surface`, radius 20, a 2 px `--primary` border (`--good` when all done), padding 16; label «LO PRÓXIMO» (`--t-label`, `--link`); a 60 px thumb/icon tile + title 20/26 700 + meta 15/20; a primary lg full-width button | done variant |
+| C-34 | `HeroCard` («Lo próximo») | `kind, title, meta, thumb\|icon, action` | `--surface`, radius 20, a 2 px `--primary` border (`--good` when all done), padding 16; label «LO PRÓXIMO» (`--t-label`, `--link`); a 60 px thumb/icon tile + title 20/26 700 + meta 15/20; a primary lg full-width button | done variant |
 | C-35 | `ShortcutTile` | `icon, label, sub, tone?, onTap` | half width, 72 tall, `--surface`, radius 16, a 36 px icon tile + label 16/22 600 + sub 13/18 `--text-2` | — |
 | C-36 | `NoteSheet` | `context?` | §8.13 | — |
 | C-37 | `OutboxPill` / `OutboxSheet` | — | §2.2, §8.14 | — |
 | C-38 | `DayHeader` | `day, progress?` | `calendar` 16 px + label 15/20 700 («Hoy», «Sáb 10 oct», «Atrasado · sáb 3 oct» in `--bad`), right-aligned progress 13/18 `--muted` («2 de 5») | — |
 | C-39 | `InitialAvatar` | `name` | 40 px circle, `--tint-info`, initial letter 17 600 `--info` | — |
-| C-40 | `Stepper` (product timeline) | `steps[{label, state: done|current|todo}]` | vertical, 20 px nodes (`circle-check` done in `--good`, a filled `--primary` dot for current, `circle` for todo), labels 15/20 | — |
+| C-40 | `Stepper` (product timeline) | `steps[{label, state: done\|current\|todo}]` | vertical, 20 px nodes (`circle-check` done in `--good`, a filled `--primary` dot for current, `circle` for todo), labels 15/20 | — |
 
 ---
 
@@ -535,7 +535,7 @@ Tone: Cuban/US Spanish, «tú», plain words, sentence case, no exclamation mark
 | `empty.products` | Ningún producto elegido | En el Feed toca «Lo quiero» o mándale el link a Grok. |
 | `empty.brands` | Sin tratos abiertos | — |
 | `empty.grok` | — (section hidden) | — |
-| `empty.grabar.todo` | ¡Todo grabado! | {Sube las tomas desde cada board. | Pasa las tomas a la Mac.} |
+| `empty.grabar.todo` | ¡Todo grabado! | «Sube las tomas desde cada board.» (owner uploads on) or «Pasa las tomas a la Mac.» (off) |
 | `empty.grabar.done` | Nada grabado todavía | Cuando marques un video, sale aquí. |
 | `empty.creadoras` | Ninguna creadora activa | Pídele a Grok un link para una creadora. |
 | `empty.review` | Nada por revisar | — |

@@ -51,7 +51,7 @@ Each decision is final for the implementing agent. Items that truly need Jorge a
 | **Q-02** Is the creator portal installable? | **No.** The PWA is Jorge's app only (`/grok-canvas/app/`, its own scope, manifest and service worker). `portal.html` stays a plain link-only page with no manifest and no service worker, but it shares the design tokens and the board and upload components. | Creator sessions last a shoot day plus 3 days. Installing on iOS would split storage and break the resumable-upload state in IndexedDB between Safari and the home-screen app. It also keeps every creator device outside Jorge's service-worker scope. |
 | **Q-03** Where do Feed and Boards live? | **Feed** is a full-screen route `#/feed`, opened from the Dashboard «Atajos» tile (1 tap). The bottom bar is hidden in Feed, and «‹» goes back. **Boards** is a library route `#/boards`, opened from the Dashboard «Atajos» tile and from the «Boards» button in the Grabar app bar (1 tap each). A 4th «Feed» tab is **prepared behind a flag** (`TABS_WITH_FEED=false`) pending Jorge's OK (§1.3). | Honors HR-01/HR-02 (exactly three tabs) while keeping both screens at ≤ 2 taps from anywhere. |
 | **Q-04** `hub.html`, `manager.html`, `board.html` vs `portal.html`, `index.html` | `comando.html`, `hub.html`, `grabacion.html`, `boards.html`, `feed.html`, `manager.html` and `board.html` become **redirectors** to `app/` (hash preserved). `portal.html` stays (creator portal, rebuilt on shared modules). `index.html` stays as the generic canvas for ad hoc pieces (charts, still approvals that haven't migrated). It gains a shim: a decrypted scene of `type:"board"` redirects to `app/`. `preview.html` becomes a synthetic static demo of v2. | One viewer per job. No link breaks. |
-| **Q-05** AI (Kling) boards with GO / Pedir cambios | **Same board template.** The bottom section is **«Aprobar»** (GO / Pedir cambios cards) instead of «Subir video» when the board scene has `approvals[]`. Payloads are unchanged: `{kind:"approve", blockId, choice:"go"|"changes"}`. AI boards that haven't been republished as `board` v2 keep opening in `index.html` (labeled «Board antiguo» in the library). | One template (HR-05). No new mailbox effects. |
+| **Q-05** AI (Kling) boards with GO / Pedir cambios | **Same board template.** The bottom section is **«Aprobar»** (GO / Pedir cambios cards) instead of «Subir video» when the board scene has `approvals[]`. Payloads are unchanged: `{kind:"approve", blockId, choice:"go"\|"changes"}`. AI boards that haven't been republished as `board` v2 keep opening in `index.html` (labeled «Board antiguo» in the library). | One template (HR-05). No new mailbox effects. |
 | **Q-06** Does Jorge upload his takes from his board? | **Yes, via Worker v1.1 «owner session»** (§11). The box keeps one rolling owner session for Jorge's own jobs. Its token is sealed in the root scene as `ownerToken`, exactly like `managerToken`, and it uses the **existing** creator upload endpoints unchanged. Until v1.1 is deployed and `ownerToken` is present, Jorge's board hides the upload section and shows nothing disabled. The «Pasar tomas a la Mac» task keeps coming from the generator. | Fulfills HR-05 and HR-06 and fixes B-09 with minimal Worker surface: one D1 column, one admin endpoint, one response field. |
 | **Q-07** Migrate `bella` ids to `creadoras`? | **No id migration in v2.** Lane ids stay `miamix` and `bella` (profile, products.json, Worker account, item ids `bella:<pid>:post`). Display labels come from a single viewer map `LANES = {miamix:"Miami X", bella:"Creadoras", creadoras:"Creadoras"}` that overrides scene labels, so the viewer **cannot** render «Bella» even with an old scene. Generators change the human-readable texts they emit (§10). The alias `creadoras` is accepted now, so a future id migration needs no viewer change. | Zero risk to the Worker, the tracker and the live session. HR-10 holds on screen. |
 | **Q-08** One aggregate Dashboard scene or many? | **Root scene `comando` v4 (light, everything Dashboard, Grabar and Creadoras need) + `keyring` for heavy sub-scenes (feed, boards) loaded on demand and prefetched on idle.** Filming data moves **into** the root scene (`videos[]`), so the three tabs need one fetch. The legacy `filming` scene keeps being published until Phase 9, for old links opened on devices without the keyring. | One fetch for the first useful paint. The heavy feed stays separate. No key rotation: the keyring holds the existing keys. |
@@ -233,6 +233,7 @@ decrypt fails → if the stored root key failed too: «Tu link cambió» state; 
 │   ├── index.html              PWA shell: CSP, manifest link, apple meta, <main id="app">, imports app.js
 │   ├── app.js                  boot, router, screen registry, refresh loop, SW registration
 │   ├── sw.js                   service worker (scope /grok-canvas/app/)
+│   ├── version.js              export const VERSION (written by scripts/release.mjs)
 │   ├── manifest.webmanifest
 │   └── icons/                  icon-192.png, icon-512.png, maskable-512.png, apple-touch-icon-180.png,
 │                               splash-*.png (10), icon.svg, ICONS.sha256
@@ -262,7 +263,7 @@ decrypt fails → if the stored root key failed too: «Tu link cambió» state; 
 ├── comando.html hub.html grabacion.html boards.html feed.html manager.html board.html   → redirectors
 ├── preview.html                synthetic v2 demo
 ├── scenes/  media/             unchanged (encrypted)
-├── scripts/check-secrets.sh    + icon allowlist (D-21)  · scripts/make-icons.mjs
+├── scripts/check-secrets.sh    + icon allowlist (D-21)  · make-icons.mjs · vendor-icons.mjs · release.mjs
 └── tests/                      see QA-PLAN
 ```
 
@@ -334,10 +335,10 @@ JSON Schemas (draft 2020-12): [`schemas/comando-v4.schema.json`](schemas/comando
 | `Day` | `YYYY-MM-DD` (America/New_York business date) or `"sin-fecha"` |
 | `Thumb` | key into `thumbs` → `data:image/jpeg;base64,…` (< 60 000 chars) |
 | `EncMedia` | `{ enc: true, src: "media/m<16hex>.enc" or https://cdn.jsdelivr.net/…/media/m<16hex>.enc, mime }` |
-| `Lane` | `"miamix" | "bella" | "creadoras"` (display through `LANES`) |
-| `Tone` | `"neutral" | "accent" | "good" | "warn" | "bad" | "info" | "teal"` |
-| `VideoStatus` | `preparing | to_film | filmed | editing | to_publish | published | to_approve | problem | retired` (PRD §6.1) |
-| `Stage` | `chosen | sample_requested | sample_shipping | arrived | researching | pick_script | preparing | to_film | filmed | editing | to_publish | published | brand_hold | dropped` (PRD §6.2) |
+| `Lane` | `"miamix" \| "bella" \| "creadoras"` (display through `LANES`) |
+| `Tone` | `"neutral" \| "accent" \| "good" \| "warn" \| "bad" \| "info" \| "teal"` |
+| `VideoStatus` | `preparing \| to_film \| filmed \| editing \| to_publish \| published \| to_approve \| problem \| retired` (PRD §6.1) |
+| `Stage` | `chosen \| sample_requested \| sample_shipping \| arrived \| researching \| pick_script \| preparing \| to_film \| filmed \| editing \| to_publish \| published \| brand_hold \| dropped` (PRD §6.2) |
 
 ### 7.2 Root scene `comando` v4 (replaces hub v3)
 
@@ -493,7 +494,7 @@ v1 plus optional `shootDate`, `expiresAt`, `version: 2`. Everything else is unch
 | Dashboard | `tasks, products, brands, grok, alerts, scripts, thumbs, updatedAt, videos (hero), creators (hero)`; feed/boards scene counts | `GET /manager/sessions` (hero: takes to review) | `hub-done:<b>`, `hub-picks:<b>` | `approve` done/undo, `approve` act, `pick`, `note` |
 | Product sheet | `products[i], videos, tasks (its action), thumbs` | — | `hub-done` | as Dashboard |
 | Grabar | `videos (owner jorge), ticks, products, thumbs` | owner `GET /s/<ownerToken>` (takes count) | `rec-ticks:<b>`, `rec-sync:<b>` | `ticks` v2 |
-| Creadoras | `creators, portalApi, managerToken, thumbs` | `GET /manager/sessions`, `POST /manager/sessions/:id/extend|revoke`, `GET /manager/takes/:id/url`, `POST /manager/takes/:id/approve|redo` | — | `note` (Pedir link nuevo) |
+| Creadoras | `creators, portalApi, managerToken, thumbs` | `GET /manager/sessions`, `POST /manager/sessions/:id/extend\|revoke`, `GET /manager/takes/:id/url`, `POST /manager/takes/:id/approve\|redo` | — | `note` (Pedir link nuevo) |
 | Revisar tomas | session takes (live), `creators[].jobs[].board` → board beats (for «Lo que dices») | ticket URL + file | — | — |
 | Boards | boards v2 scene | — | `boards:lane` | `note` (Pedir a Grok) |
 | Board (owner) | board v2 scene | owner session `/s`, `/upload/*` | IndexedDB `owner-uploads` | `approve` go/changes (AI) |
@@ -537,12 +538,12 @@ v1 plus optional `shootDate`, `expiresAt`, `version: 2`. Everything else is unch
 
 | Source | Payload |
 |---|---|
-| ✓ / Deshacer | `{kind:"approve", blockId:<task.id>, choice:"done"|"undo", at}` |
-| act («La aprobaron», «Llegó»…) | `{kind:"approve", blockId:<act.id>, choice:"done"|"undo", at}` |
+| ✓ / Deshacer | `{kind:"approve", blockId:<task.id>, choice:"done"\|"undo", at}` |
+| act («La aprobaron», «Llegó»…) | `{kind:"approve", blockId:<act.id>, choice:"done"\|"undo", at}` |
 | «Lo quiero» | `{kind:"approve", blockId:"want:<pid>", choice:"want", at}` |
-| GO / Pedir cambios | `{kind:"approve", blockId, choice:"go"|"changes", at}` |
-| Pick | `{kind:"pick", v:1, job:"ff-NNN", letter:"A"|"B"|"C"|"", at}` |
-| Grabado | `{kind:"ticks", v:2, set:{"rec:<job>":[0|1, ms]}, at}` (`text/plain`) |
+| GO / Pedir cambios | `{kind:"approve", blockId, choice:"go"\|"changes", at}` |
+| Pick | `{kind:"pick", v:1, job:"ff-NNN", letter:"A"\|"B"\|"C"\|"", at}` |
+| Grabado | `{kind:"ticks", v:2, set:{"rec:<job>":[0\|1, ms]}, at}` (`text/plain`) |
 | Nota | `{kind:"note", text, at}`. When sent with a context, the text is prefixed `«<Producto>»: `. There's no new field. |
 
 ---
@@ -575,7 +576,7 @@ Backward compatible. Existing clients (today's `portal.html`, `comando.html`, `m
 | ID | Change | Detail |
 |---|---|---|
 | W-1a | D1 migration `0005_session_kind.sql` | `ALTER TABLE sessions ADD COLUMN kind TEXT NOT NULL DEFAULT 'creator' CHECK (kind IN ('creator','owner'));` |
-| W-1b | Admin create accepts `kind` | `POST /admin/sessions {…, kind?: "creator"|"owner"}`. `owner` requires `account` = Jorge's own account and allows `expires_at` up to now + 30 days. At most **one** non-revoked owner session per account (409 otherwise). |
+| W-1b | Admin create accepts `kind` | `POST /admin/sessions {…, kind?: "creator"\|"owner"}`. `owner` requires `account` = Jorge's own account and allows `expires_at` up to now + 30 days. At most **one** non-revoked owner session per account (409 otherwise). |
 | W-1c | New admin endpoint | `POST /admin/sessions/:id/jobs {add?: string[], remove?: string[]}` → upserts/deletes `session_jobs` rows (`remove` is refused with 409 if the job has takes not yet pulled). Returns the session. Admin bearer only. |
 | W-1d | Admin extend for owner | `POST /admin/sessions/:id/extend {days}` allows 1–30 when `kind='owner'` (stays 1–14 for creators). |
 | W-1e | `GET /manager/sessions` | Adds a `kind` field per session. **Owner sessions are excluded by default**; `?include=owner` returns them. Every take object includes (adding any that are missing) `id, job_id, shot, take, status, redo_reason, uploaded_at, pulled_at, size`. |
@@ -681,13 +682,13 @@ Invariants (QA PWA-07/08): the SW never reads, stores or logs request bodies or 
 3. Tap → `postMessage({type:"SKIP_WAITING"})` → `controllerchange` → `location.reload()` (route preserved; keys are not in the URL).
 4. **Never auto-reload** while an upload is in progress, a sheet with a text input is open, or the outbox is sending. The banner waits.
 5. **Kill switch** (in the runbook): replace `sw.js` with a version that calls `self.registration.unregister()` and deletes all caches on `activate`, then reloads clients. It's documented in IMPLEMENTATION-PLAN §6.
-6. `VERSION` = semver + short git sha, and Ajustes shows «Versión 2.0.0 (abc1234)».
+6. `VERSION` = semver + the first 7 hex chars of a SHA-256 over the precached shell files (a commit can't contain its own git sha, and a content hash guarantees a new SW whenever the shell changes). `scripts/release.mjs` writes it into `sw.js` and `app/version.js`. Ajustes shows «Versión 2.0.0 (abc1234)».
 
 ### 12.7 Install guidance
 
 | Platform | Detection | UI |
 |---|---|---|
-| iOS Safari (not standalone) | `/iPhone|iPad/` (+ iPadOS desktop UA with touch), `navigator.standalone === false` | A Dashboard banner «Instala Comando en tu iPhone» [Ver cómo] [✕] → install sheet with 3 illustrated steps (PRD §8.16). After install: «Abre Comando desde tu pantalla de inicio y pega tu link.» plus a **Copiar link para la app** button, available only in the same session where the key was just imported (the raw link is held in memory, never stored). |
+| iOS Safari (not standalone) | `/iPhone\|iPad/` (+ iPadOS desktop UA with touch), `navigator.standalone === false` | A Dashboard banner «Instala Comando en tu iPhone» [Ver cómo] [✕] → install sheet with 3 illustrated steps (PRD §8.16). After install: «Abre Comando desde tu pantalla de inicio y pega tu link.» plus a **Copiar link para la app** button, available only in the same session where the key was just imported (the raw link is held in memory, never stored). |
 | iOS other browsers (Chrome/Edge on iOS 16.4+) | iOS + not Safari | The same sheet, with the share icon location adjusted («Toca ⋯ o Compartir»). |
 | Android Chrome/Edge | `beforeinstallprompt` | Banner «Instala Comando» [Instalar] → `prompt()`. Hidden after `appinstalled`. |
 | Desktop | `beforeinstallprompt` | Ajustes › «Instalar en esta computadora» only (no banner). |
