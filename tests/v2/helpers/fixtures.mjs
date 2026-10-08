@@ -239,6 +239,177 @@ export function creatorFeed() {
   };
 }
 
+const CANVAS_B = "canvasblob01";
+const CANVAS_K = "EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE";
+
+function canvasUrl() {
+  return `https://jorgedearmas.github.io/grok-canvas/index.html#b=${CANVAS_B}&k=${CANVAS_K}`;
+}
+
+/** Hub v3 as published today: no keyring, sub-scenes only in quick/item hrefs. */
+export function hubV3Live() {
+  const boardsHref = `https://jorgedearmas.github.io/grok-canvas/boards.html#b=${BRD_B}&k=${BRD_K}`;
+  const filmHref = `https://jorgedearmas.github.io/grok-canvas/grabacion.html#b=${FIL_B}&k=${FIL_K}`;
+  const feedHref = `https://jorgedearmas.github.io/grok-canvas/feed.html#b=${FEED_B}&k=${FEED_K}`;
+  return {
+    type: "hub",
+    version: 3,
+    updatedAt: "2026-10-08T13:00:00.000Z",
+    mailbox: MAIL,
+    portalApi: API,
+    managerToken: MGR,
+    ownerToken: OWN,
+    thumbs: thumbs(),
+    quick: [
+      { label: "Todos los boards", sub: "14 boards", href: boardsHref },
+      { label: "Creator feed", sub: "", href: feedHref },
+    ],
+    sections: [
+      { id: "hoy", title: "Hoy", items: [] },
+      {
+        id: "grabar",
+        title: "Por grabar",
+        items: [
+          { id: "rec:open", title: "Grabación", href: filmHref, group: "Sábado 10 oct" },
+          { id: "rec:ff010", title: "Hook del pack", product: "waffle", href: canvasUrl(), group: "Sábado 10 oct" },
+          { id: "rec:cortina", title: "Sin board", product: "waffle", group: "Sábado 10 oct" },
+        ],
+      },
+      {
+        id: "productos",
+        title: "Productos",
+        items: [
+          { id: "waffle", title: "Waffle de cortina", thumb: "pa", chip: { text: "Por grabar" }, avatar: "bella" },
+        ],
+      },
+    ],
+    creators: [{
+      id: "sess-demo",
+      creatorName: "Nia",
+      shootDate: "2026-10-10",
+      expiresAt: "2026-10-13T16:00:00.000Z",
+      status: "active",
+      jobs: [{ job_id: "ff-030", name: "Waffle de cortina", status: "sent" }],
+      link: "https://jorgedearmas.github.io/grok-canvas/portal.html#b=portalblob1&k=DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD&t=creatortokensynth01",
+    }],
+    footer: [],
+  };
+}
+
+export function filmingV2Live() {
+  return {
+    type: "filming",
+    version: 2,
+    updatedAt: "2026-10-08T13:00:00.000Z",
+    mailbox: MAIL,
+    products: { waffle: { name: "Waffle de cortina", thumb: JPEG } },
+    videos: [
+      { id: "rec:ff010", day: "2026-10-10", place: "SALA", product: "waffle", title: "Hook del pack", ready: true, owner: "jorge", board: canvasUrl() },
+      { id: "rec:cortina", day: "2026-10-10", place: "SALA", product: "waffle", title: "Sin board", ready: true, owner: "jorge", board: "" },
+    ],
+    ticks: {},
+  };
+}
+
+export function boardsV1Live() {
+  return {
+    type: "boards",
+    version: 1,
+    updatedAt: "2026-10-08T13:00:00.000Z",
+    avatars: [{ id: "miamix", label: "Miami X" }, { id: "bella", label: "Bella" }],
+    kinds: [{ id: "film", label: "Grabación" }, { id: "fw", label: "Framework" }],
+    boards: [
+      {
+        id: "fw1", name: "Waffle de cortina", what: "Framework (donor) para Bella",
+        avatar: "bella", kind: "film", status: "Board listo", date: "2026-10-01", thumb: JPEG,
+        board: "https://jorgedearmas.github.io/grok-canvas/board.html#b=boardblob01xx&k=DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD",
+      },
+      {
+        id: "cv1", name: "Waffle de cortina", what: "Pack de grabación",
+        avatar: "miamix", kind: "film", status: "Board listo", date: "2026-10-10", thumb: JPEG,
+        board: canvasUrl(),
+      },
+    ],
+  };
+}
+
+export function canvasFf() {
+  return {
+    title: "Waffle de cortina",
+    summary: "2 tomas",
+    blocks: [
+      { type: "script", id: "vo", title: "Guion VO", data: { text: "Mira el waffle, lo uso todos los días.\nLo abres y listo." } },
+      { type: "checklist", id: "act", title: "Acción por shot", data: { items: [{ label: "Muestra el pack" }, { label: "Abre el cierre" }] } },
+      {
+        type: "table", id: "beats", title: "Beat por beat",
+        data: {
+          columns: ["Shot", "VO", "Acción"],
+          rows: [
+            ["1", "Mira el waffle, lo uso todos los días.", "Muestra el pack"],
+            ["2", "Lo abres y listo.", "Abre el cierre"],
+          ],
+        },
+      },
+      { type: "video", id: "ref", title: "Referencia", data: { enc: true, src: "media/m0123456789abcdef.enc", mime: "video/mp4" } },
+    ],
+  };
+}
+
+export function canvasCharts() {
+  return {
+    title: "Solo cifras",
+    blocks: [{ type: "kpi", title: "KPIs", data: { items: [{ label: "Vistas", value: 10 }] } }],
+  };
+}
+
+/** creator-feed v3.1 field names, not the flattened Ana card. */
+export function creatorFeedLive() {
+  return {
+    type: "creator-feed",
+    updatedAt: "2026-10-08T11:43:00.000Z",
+    default_avatar: "miamix",
+    avatars: [
+      { id: "miamix", label: "Miami X", count: 2 },
+      { id: "bella", label: "Bella", count: 0, empty: "Hoy no hay videos." },
+    ],
+    cards: [
+      {
+        id: "c-live-1",
+        creator: "@demo.shop",
+        avatars: ["miamix"],
+        url: "https://www.tiktok.com/@demo.shop/video/100",
+        hook: "Hook del waffle",
+        metrics: { views: 1200000, likes: 54000, comments: 320, shares: 90, saves: 400 },
+        score: { value: 91, label: "Feed v3", coverage: 0.8 },
+        best: { label: "12x su promedio (3d)" },
+        cover: { enc: true, src: "media/m0123456789abcdef.enc", mime: "image/png" },
+        preview: { enc: true, src: "media/mabcdef0123456789.enc", mime: "video/mp4" },
+        product: {
+          id: "p-waffle",
+          title: "Waffle de cortina",
+          price: "$24.00",
+          commission: "Comisión 12%",
+          href: "https://shop.tiktok.com/view/product/1",
+          image: { enc: true, src: "media/m0123456789abcdef.enc", mime: "image/png" },
+          verify: "ventas al alza",
+        },
+      },
+      {
+        id: "c-live-2",
+        creator: "@demo.shop",
+        avatars: ["miamix"],
+        url: "https://www.tiktok.com/@demo.shop/video/200",
+        hook: "Sin producto",
+        metrics: { views: null, likes: null, comments: null, shares: null, saves: null },
+        score: { value: 40, label: "GMV Max", coverage: 1 },
+        cover: { enc: true, src: "media/m0123456789abcdef.enc", mime: "image/png" },
+        preview: null,
+        product_missing_label: "Producto sin identificar",
+      },
+    ],
+  };
+}
+
 export const CATALOG = {
   "root-v4": rootV4,
   "root-v4-owner": rootV4Owner,
@@ -256,6 +427,12 @@ export const CATALOG = {
   "portal-v1": portalV1,
   "portal-v2-forbidden": portalForbidden,
   "creator-feed": creatorFeed,
+  "hub-v3-live": hubV3Live,
+  "filming-v2-live": filmingV2Live,
+  "boards-v1-live": boardsV1Live,
+  "canvas-ff": canvasFf,
+  "canvas-charts": canvasCharts,
+  "creator-feed-live": creatorFeedLive,
 };
 
-export const TOKENS = { MAIL, API, MGR, OWN, CRE, FEED_B, FEED_K, BRD_B, BRD_K, FIL_B, FIL_K, JPEG };
+export const TOKENS = { MAIL, API, MGR, OWN, CRE, FEED_B, FEED_K, BRD_B, BRD_K, FIL_B, FIL_K, JPEG, CANVAS_B, CANVAS_K };
