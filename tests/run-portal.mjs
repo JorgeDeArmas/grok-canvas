@@ -23,6 +23,11 @@ assert.match(html, /function decryptMediaNow/);
 assert.match(html, /blob:/);
 assert.doesNotMatch(html, /refHint|refSrc:\s*["']["']/);
 assert.match(html, /Graba en 1080p/);
+assert.match(html, /Lo que dices/);
+assert.match(html, /Qué haces/);
+assert.match(html, /Subir video/);
+assert.match(html, /label\.btn/);
+assert.match(html, /\[hidden\] \{ display: none !important/);
 assert.doesNotMatch(html, /ACCIÓN:|como el donor|Sin beats/);
 
 const JPEG = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wAAAAD/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAn/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIQAxAAAAD/AP/EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAT8Af//Z";
@@ -213,7 +218,57 @@ async function open(name, token, opts) {
   assert.match(boardTxt, /Referencia/);
   assert.match(boardTxt, /La nuestra/);
   assert.match(boardTxt, /Mira esto/);
+  assert.match(boardTxt, /lo que dices/i);
+  assert.match(boardTxt, /qué haces/i);
   assert.match(await page.locator("#sec-up").innerText(), /Graba en 1080p/);
+  assert.match(await page.locator("#sec-up").innerText(), /Subir video/);
+  assert.match(await page.locator("#sec-up").innerText(), /Enviado/);
+  assert.doesNotMatch(await page.locator("#sec-up").innerText(), /Reanudar/);
+  assert.equal(await page.locator("[data-resume]").evaluateAll((els) => els.filter((e) => !e.hidden).length), 0);
+  const takeLabels = await page.evaluate(() => ["sent", "uploading", "uploaded", "redo"].map((s) => takeLabel(s, s === "uploading" ? 0.5 : null)));
+  assert.deepEqual(takeLabels, ["Enviado", "Subiendo 50%", "Subido ✓", "Rehacer"]);
+  const upUi = await page.evaluate(() => {
+    const btn = document.querySelector(".filebtn");
+    const br = btn.getBoundingClientRect();
+    const bs = getComputedStyle(btn);
+    const q = document.querySelector(".say .q");
+    const d = document.querySelector(".do .d");
+    return {
+      btnH: br.height, btnW: br.width,
+      parentW: btn.parentElement.getBoundingClientRect().width,
+      btnBg: bs.backgroundColor, qSize: parseFloat(getComputedStyle(q).fontSize),
+      dSize: parseFloat(getComputedStyle(d).fontSize)
+    };
+  });
+  assert.ok(upUi.btnH >= 44, "upload tap target");
+  assert.ok(upUi.btnW + 1 >= upUi.parentW, "upload full width");
+  assert.ok(upUi.qSize > upUi.dSize);
+  await page.evaluate(() => setProgress("FF-010:2:1", 0.42));
+  assert.match(await page.locator('[data-up="FF-010:2:1"] .meta').innerText(), /Subiendo 42%/);
+  await page.evaluate(async () => {
+    const db = await new Promise((res, rej) => {
+      const r = indexedDB.open("portal-uploads", 1);
+      r.onupgradeneeded = () => r.result.createObjectStore("uploads");
+      r.onsuccess = () => res(r.result);
+      r.onerror = () => rej(r.error);
+    });
+    await new Promise((res, rej) => {
+      const tx = db.transaction("uploads", "readwrite");
+      tx.objectStore("uploads").put({ uploadId: "up-cut", parts: { 1: "ok" }, done: false, size: 100, partSize: 8 }, "FF-010:1:1");
+      tx.oncomplete = () => res();
+      tx.onerror = () => rej(tx.error);
+    });
+  });
+  await page.click("#back");
+  await page.waitForSelector("[data-open='FF-010']");
+  await page.locator("[data-open='FF-010']").click();
+  await page.waitForFunction(() => {
+    const b = document.querySelector('[data-resume="FF-010:1:1"]');
+    return b && !b.hidden;
+  });
+  assert.equal(await page.locator("[data-resume='FF-010:1:1']").evaluate((e) => e.hidden), false);
+  assert.equal(await page.locator("[data-resume='FF-010:2:1']").evaluate((e) => e.hidden), true);
+  assert.match(await page.locator("#sec-up").innerText(), /Reanudar/);
   assert.doesNotMatch(await page.locator("#sec-ref").innerText(), /Video de referencia en el board cifrado|Sin video de referencia/);
   await page.waitForFunction(() => {
     const v = document.querySelector("#sec-ref video");
@@ -340,12 +395,39 @@ async function fakeUpload(page, size, failAfter) {
   await ctx.close();
 }
 
+{
+  db.sessions[TOKEN].takes = [];
+  for (const j of db.sessions[TOKEN].jobs) if (j.status === "uploaded") j.status = "opened";
+  for (const scheme of ["dark", "light"]) {
+    const { ctx, page } = await open("up-shot-" + scheme, TOKEN, { ...devices["iPhone 13"], colorScheme: scheme });
+    await page.waitForSelector("[data-open='FF-010']");
+    await page.locator("[data-open='FF-010']").click();
+    await page.waitForSelector("#sec-up .filebtn");
+    const file = `board-upload-${scheme}.png`;
+    await page.locator("#sec-up").screenshot({ path: path.join(SHOTS, file) });
+    if (MEDIA) { try { fs.copyFileSync(path.join(SHOTS, file), path.join(MEDIA, file)); } catch (e) {} }
+    const btn = await page.locator("#sec-up .filebtn").first().evaluate((el) => {
+      const r = el.getBoundingClientRect();
+      const s = getComputedStyle(el);
+      return { h: r.height, w: r.width, bg: s.backgroundColor, label: el.textContent };
+    });
+    assert.ok(btn.h >= 44, scheme + " tap target");
+    assert.match(btn.label, /Subir video/);
+    assert.equal(await page.locator("[data-resume]").evaluateAll((els) => els.filter((e) => !e.hidden).length), 0);
+    await ctx.close();
+  }
+}
+
 await browser.close();
 assert.deepEqual(errors, []);
 assert.ok(fs.existsSync(path.join(SHOTS, "portal-plp.png")));
 assert.ok(fs.existsSync(path.join(SHOTS, "portal-pdp.png")));
+assert.ok(fs.existsSync(path.join(SHOTS, "board-upload-dark.png")));
+assert.ok(fs.existsSync(path.join(SHOTS, "board-upload-light.png")));
 if (MEDIA) {
   assert.ok(fs.existsSync(path.join(MEDIA, "portal-plp.png")));
   assert.ok(fs.existsSync(path.join(MEDIA, "portal-pdp.png")));
+  assert.ok(fs.existsSync(path.join(MEDIA, "board-upload-dark.png")));
+  assert.ok(fs.existsSync(path.join(MEDIA, "board-upload-light.png")));
 }
 console.log("portal viewer OK");
