@@ -11,7 +11,8 @@
   :root { color-scheme: light dark; --bg: #f2f2f7; --card: #fff; --text: #1c1c1e; --muted: #6e6e73; --line: rgba(60,60,67,.14);
     --accent: #007aff; --chip: #e9e9ee; --bad: #ff3b30; --good: #34c759; --warn: #ff9500; --info: #007aff; --teal: #30b0c7;
     --safe-t: env(safe-area-inset-top, 0px); --safe-b: env(safe-area-inset-bottom, 0px); }
-  @media (prefers-color-scheme: dark) { :root { --bg: #000; --card: #1c1c1e; --text: #f5f5f7; --muted: #98989d; --line: rgba(255,255,255,.10); --accent: #0a84ff; --chip: #2c2c2e; } }
+  @media (prefers-color-scheme: dark) { :root { --bg: #000; --card: #1c1c1e; --text: #f5f5f7; --muted: #98989d; --line: rgba(255,255,255,.10); --accent: #0a84ff; --chip: #2c2c2e; }
+    .say { background: color-mix(in srgb, var(--accent) 24%, var(--card)); } }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body { margin: 0; }
   body { font: 16px/1.35 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); -webkit-text-size-adjust: 100%; }
@@ -35,17 +36,27 @@
   .st.bad { background: var(--bad); } .st.good { background: var(--good); } .st.info { background: var(--info); }
   .st.teal { background: var(--teal); } .st.warn { background: var(--warn); } .st.muted { background: var(--muted); }
   .act { margin-top: 9px; }
-  button.btn, a.btn { display: inline-block; min-height: 44px; padding: 0 16px; border-radius: 11px; background: var(--accent); color: #fff; text-decoration: none;
-    font: 600 15px/44px -apple-system, "Segoe UI", sans-serif; white-space: nowrap; border: 0; cursor: pointer; }
-  button.ghost { background: var(--chip); color: var(--text); }
+  button.btn, a.btn, label.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 0 16px; border-radius: 11px; background: var(--accent); color: #fff; text-decoration: none;
+    font: 600 15px/1.2 -apple-system, "Segoe UI", sans-serif; white-space: nowrap; border: 0; cursor: pointer; }
+  button.ghost, .btn.ghost { background: var(--chip); color: var(--text); }
+  [hidden] { display: none !important; }
   .empty, .status { background: var(--card); border-radius: 16px; padding: 22px 16px; text-align: center; color: var(--muted); }
   article { background: var(--card); border-radius: 16px; padding: 14px; margin-bottom: 12px; }
   article h2 { font-size: 15px; margin: 0 0 10px; }
   .scene { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
   .scene img, .scene .ph { width: 100%; aspect-ratio: 9/16; object-fit: cover; border-radius: 12px; background: var(--chip); }
   .cap { font-size: 12px; color: var(--muted); margin-top: 4px; }
-  .do { font-size: 15px; margin-top: 6px; font-weight: 650; }
-  .line { font-size: 14px; color: var(--muted); margin-top: 4px; }
+  .beat { margin-top: 14px; }
+  .beat:first-child { margin-top: 0; }
+  .say { margin: 10px 0 8px; padding: 14px; border-radius: 14px;
+    background: color-mix(in srgb, var(--accent) 16%, var(--card));
+    border: 1px solid color-mix(in srgb, var(--accent) 42%, var(--line)); }
+  .say .k, .do .k { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; margin-bottom: 6px; }
+  .say .k { color: var(--accent); }
+  .say .q { margin: 0; font-size: 20px; font-weight: 700; line-height: 1.3; letter-spacing: -.02em; color: var(--text); }
+  .do { margin-top: 4px; }
+  .do .k { color: var(--muted); margin-bottom: 4px; }
+  .do .d { font-size: 13.5px; font-weight: 400; line-height: 1.4; color: var(--muted); }
   .hint { font-size: 13px; color: var(--muted); margin: 0 0 10px; }
   .script { width: 100%; min-height: 140px; resize: vertical; border-radius: 12px; border: 1px solid var(--line); background: var(--bg); color: var(--text);
     font: 16px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; padding: 12px; }
@@ -59,8 +70,11 @@
   .chk.redo { background: var(--warn); border-color: var(--warn); color: #fff; }
   .bar { height: 6px; background: var(--chip); border-radius: 99px; overflow: hidden; margin-top: 6px; }
   .bar i { display: block; height: 100%; background: var(--accent); width: 0; }
-  input[type=file] { position: absolute; opacity: 0; width: 0; height: 0; }
-  .filebtn { display: inline-block; }
+  .act.stack { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+  .act.stack .btn { width: 100%; }
+  input[type=file] { position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%; cursor: pointer; }
+  .filebtn { position: relative; overflow: hidden; width: 100%; }
+  .filebtn svg { width: 18px; height: 18px; flex: none; }
   .toast { font-size: 13px; color: var(--muted); min-height: 18px; margin-top: 6px; }
 </style>
 </head>
@@ -75,6 +89,7 @@ const $ = (id) => document.getElementById(id);
 const THUMB_RE = /^data:image\/jpeg;base64,[A-Za-z0-9+/]+={0,2}$/;
 const TONES = { sent: "info", opened: "teal", uploading: "warn", uploaded: "info", approved: "good", redo: "warn", pulled: "good" };
 const LABELS = { sent: "Enviado", opened: "Abierto", uploading: "Subiendo", uploaded: "Subido", approved: "Aprobado", redo: "Re-grabar", pulled: "Listo" };
+const UP_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 4l4.5 4.5-1.4 1.4L13 7.8V16h-2V7.8L8.9 9.9 7.5 8.5 12 4zM5 18h14v2H5v-2z"/></svg>';
 const DB_NAME = "portal-uploads";
 const CONCURRENCY = 3;
 function esc(s) { return String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
@@ -252,11 +267,18 @@ async function renderPlp() {
 }
 
 function sceneHtml(b) {
-  return `<div class="scene" data-shot="${esc(b.shot)}"><div>${mediaImg(b.refFrame)}<div class="cap">Referencia</div></div><div>${mediaImg(b.ourFrame)}<div class="cap">La nuestra</div></div></div>`
-    + (b.do_es ? `<div class="do">${esc(txt(b.do_es, 400))}</div>` : "")
-    + (b.vo ? `<div class="line">${esc(txt(b.vo, 280))}</div>` : "");
+  const vo = b.vo ? `<div class="say"><div class="k">Lo que dices</div><blockquote class="q">${esc(txt(b.vo, 280))}</blockquote></div>` : "";
+  const action = b.do_es ? `<div class="do"><div class="k">Qué haces</div><div class="d">${esc(txt(b.do_es, 400))}</div></div>` : "";
+  return `<div class="beat" data-shot="${esc(b.shot)}"><div class="scene"><div>${mediaImg(b.refFrame)}<div class="cap">Referencia</div></div><div>${mediaImg(b.ourFrame)}<div class="cap">La nuestra</div></div></div>`
+    + vo + action + `</div>`;
 }
 
+function takeLabel(st, pct) {
+  if (st === "uploading") return pct == null ? "Subiendo" : `Subiendo ${Math.round(pct * 100)}%`;
+  if (st === "uploaded" || st === "approved" || st === "pulled") return "Subido ✓";
+  if (st === "redo") return "Rehacer";
+  return "Enviado";
+}
 function uploadRow(p, shot, take) {
   const ts = takeState(p.id, shot, take);
   const st = takeDisplay(ts);
@@ -264,13 +286,15 @@ function uploadRow(p, shot, take) {
   const done = st === "uploaded" || st === "approved" || st === "pulled";
   const cls = st === "redo" ? "redo" : (done ? "on" : "");
   const mark = done ? "✓" : (st === "redo" ? "!" : "");
+  const closed = st === "approved" || st === "pulled";
+  const fileBtn = closed || (done && st !== "redo") ? "" : `<label class="filebtn btn">${UP_ICON} Subir video<input type="file" accept="video/*" data-file="${esc(p.id)}:${shot}:${take}"></label>`;
+  const resumeBtn = closed ? "" : `<button type="button" class="btn ghost" data-resume="${esc(p.id)}:${shot}:${take}" hidden>Reanudar</button>`;
   return `<div class="row" data-up="${esc(p.id)}:${shot}:${take}">
     <div class="chk ${cls}">${mark}</div>
     <div class="body"><div class="nm">Escena ${String(shot).padStart(2, "0")} · take ${take}</div>
-    <div class="meta">${esc(LABELS[st] || st)}</div>${reason}
+    <div class="meta">${esc(takeLabel(st))}</div>${reason}
     <div class="bar" hidden><i></i></div>
-    <div class="act">${st === "approved" || st === "pulled" ? "" : `<label class="filebtn btn">${done && st !== "redo" ? "Cambiar" : "Subir"}<input type="file" accept="video/*" data-file="${esc(p.id)}:${shot}:${take}"></label>
-    <button type="button" class="btn ghost" data-resume="${esc(p.id)}:${shot}:${take}" hidden>Reanudar</button>`}</div>
+    <div class="act stack">${fileBtn}${resumeBtn}</div>
     <p class="toast" data-toast></p></div></div>`;
 }
 
@@ -354,6 +378,9 @@ function setProgress(key, pct, toast) {
   const bar = row.querySelector(".bar"); const i = row.querySelector(".bar i");
   bar.hidden = pct <= 0 || pct >= 1;
   i.style.width = Math.round(pct * 100) + "%";
+  const meta = row.querySelector(".meta");
+  if (pct > 0 && pct < 1) meta.textContent = takeLabel("uploading", pct);
+  else if (pct >= 1) meta.textContent = takeLabel("uploaded");
   if (toast != null) row.querySelector("[data-toast]").textContent = toast;
 }
 
@@ -425,7 +452,7 @@ async function runUpload(key, file, rec) {
   const pending = [];
   for (let n = 1; n <= total; n++) if (!rec.parts[n]) pending.push(n);
   let doneN = total - pending.length;
-  setProgress(key, doneN / total, `Subiendo ${doneN}/${total}`);
+  setProgress(key, doneN / total);
   async function worker() {
     while (pending.length) {
       const n = pending.shift();
@@ -437,7 +464,7 @@ async function runUpload(key, file, rec) {
       rec.parts[n] = { etag: put.etag, sha: put.sha };
       await idbSet(key, rec);
       doneN += 1;
-      setProgress(key, doneN / total, `Subiendo ${doneN}/${total}`);
+      setProgress(key, doneN / total);
     }
   }
   await Promise.all(Array.from({ length: Math.min(CONCURRENCY, pending.length || 1) }, () => worker()));

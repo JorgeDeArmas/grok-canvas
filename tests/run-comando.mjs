@@ -22,6 +22,9 @@ const preview = fs.readFileSync(path.join(ROOT, "preview.html"), "utf8");
 assert.doesNotMatch(preview, /#b=[A-Za-z0-9_-]+&k=/);
 assert.match(preview, /Graba en 1080p/);
 assert.match(preview, /Mi grabación/);
+assert.match(preview, /Lo que dices/);
+assert.match(preview, /Qué haces/);
+assert.match(preview, /Subir video/);
 assert.doesNotMatch(fs.readFileSync(path.join(ROOT, "hub.html"), "utf8").slice(0, 80), /Comando/);
 
 const JPEG = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wAAAAD/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAn/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/9k=";
