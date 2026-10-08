@@ -139,12 +139,67 @@ assert.match(await page.locator("main").innerText(), /Ana/);
 assert.match(await page.locator("main").innerText(), /Camila/);
 assert.match(await page.locator("main").innerText(), /Aprobar/);
 assert.match(await page.locator("main").innerText(), /Copiar link/);
+assert.match(await page.locator("main").innerText(), /Extender/);
+assert.match(await page.locator("main").innerText(), /Sérum/);
+assert.doesNotMatch(await page.locator("main").innerText(), /FF-020/);
+assert.equal(await page.locator("#nCreators").innerText(), "2");
 await page.locator('[data-approve="take-ana-1"]').click();
 await page.waitForFunction(() => document.body.innerText.includes("Aprobado"));
 await page.screenshot({ path: path.join(SHOTS, "creators-section.png") });
 if (MEDIA) { try { fs.copyFileSync(path.join(SHOTS, "creators-section.png"), path.join(MEDIA, "creators-section.png")); } catch (e) {} }
 
 await ctx.close();
+const ctxNoMgr = await browser.newContext({ locale: "es-ES", permissions: ["clipboard-read", "clipboard-write"], ...devices["iPhone 13"] });
+await ctxNoMgr.route("**/*", (route) => {
+  const r = route.request(); const u = new URL(r.url());
+  if (u.origin === ORIGIN && u.pathname === "/grok-canvas/comando.html") return route.fulfill({ status: 200, contentType: "text/html; charset=utf-8", body: html });
+  if (u.origin === ORIGIN && u.pathname === "/grok-canvas/scenes/cmdtest.json") return route.fulfill({ status: 200, contentType: "application/json", body: blob });
+  if (u.hostname === "webhook.site") return route.fulfill({ status: 200, body: "{}" });
+  if (u.origin === API) return json(route, 401, { error: "no" });
+  errors.push("unexpected " + u.origin + u.pathname);
+  return route.abort();
+});
+const pageNoMgr = await ctxNoMgr.newPage();
+await pageNoMgr.goto(`${ORIGIN}/grok-canvas/comando.html#b=cmdtest&k=${keyText}`);
+await pageNoMgr.waitForSelector("section");
+await pageNoMgr.locator('[data-view="creators"]').click();
+await pageNoMgr.waitForSelector("[data-creator]");
+assert.match(await pageNoMgr.locator("main").innerText(), /Copiar link/);
+assert.doesNotMatch(await pageNoMgr.locator("main").innerText(), /Extender/);
+assert.doesNotMatch(await pageNoMgr.locator("main").innerText(), /Revocar/);
+assert.equal(await pageNoMgr.locator("#nCreators").innerText(), "2");
+await ctxNoMgr.close();
+
+const sealedMgr = JSON.parse(JSON.stringify(fixture));
+sealedMgr.managerToken = "mgr-token";
+const iv2 = webcrypto.getRandomValues(new Uint8Array(12));
+const ct2 = new Uint8Array(await webcrypto.subtle.encrypt({ name: "AES-GCM", iv: iv2 }, key, new TextEncoder().encode(JSON.stringify(sealedMgr))));
+const blob2 = JSON.stringify({ iv: Buffer.from(iv2).toString("base64"), ct: Buffer.from(ct2).toString("base64") });
+const ctxSceneTok = await browser.newContext({ locale: "es-ES", permissions: ["clipboard-read", "clipboard-write"], ...devices["iPhone 13"] });
+await ctxSceneTok.route("**/*", (route) => {
+  const r = route.request(); const u = new URL(r.url());
+  if (u.origin === ORIGIN && u.pathname === "/grok-canvas/comando.html") return route.fulfill({ status: 200, contentType: "text/html; charset=utf-8", body: html });
+  if (u.origin === ORIGIN && u.pathname === "/grok-canvas/scenes/cmdtest.json") return route.fulfill({ status: 200, contentType: "application/json", body: blob2 });
+  if (u.hostname === "webhook.site") return route.fulfill({ status: 200, body: "{}" });
+  if (u.origin === API) {
+    if (r.method() === "OPTIONS") return route.fulfill({ status: 204, headers: { "access-control-allow-origin": ORIGIN, "access-control-allow-headers": "authorization,content-type" } });
+    const auth = (r.headers()["authorization"] || "");
+    if (!auth.includes("mgr-token")) return json(route, 401, { error: "no" });
+    if (u.pathname === "/manager/sessions") return json(route, 200, { sessions: state.sessions });
+    return json(route, 404, { error: "no" });
+  }
+  errors.push("unexpected " + u.origin + u.pathname);
+  return route.abort();
+});
+const pageSceneTok = await ctxSceneTok.newPage();
+await pageSceneTok.goto(`${ORIGIN}/grok-canvas/comando.html#b=cmdtest&k=${keyText}`);
+await pageSceneTok.waitForSelector("section");
+await pageSceneTok.locator('[data-view="creators"]').click();
+await pageSceneTok.waitForSelector("[data-creator]");
+assert.match(await pageSceneTok.locator("main").innerText(), /Extender/);
+assert.match(await pageSceneTok.locator("main").innerText(), /Copiar link/);
+await ctxSceneTok.close();
+
 await browser.close();
 assert.deepEqual(errors, []);
 assert.ok(fs.existsSync(path.join(SHOTS, "command-center.png")));

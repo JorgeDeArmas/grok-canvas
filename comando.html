@@ -249,6 +249,12 @@ function secret() {
   const h = new URLSearchParams((location.hash || "").replace(/^#/, ""));
   return { b: h.get("b") || "", k: h.get("k") || "", f: h.get("f") || "", m: h.get("m") || "" };
 }
+function managerTok() {
+  const fromHash = secret().m;
+  if (fromHash) return fromHash;
+  const fromScene = scene && typeof scene.managerToken === "string" ? scene.managerToken.trim() : "";
+  return fromScene || "";
+}
 function apiBaseOk(raw) {
   try {
     const u = new URL(String(raw || ""));
@@ -318,7 +324,7 @@ const CTONES = { sent: "info", opened: "info", uploading: "warn", uploaded: "inf
 async function mgrApi(path, opts) {
   const base = apiBaseOk(scene && (scene.portalApi || scene.apiBase));
   if (!base) throw new Error("api");
-  const tok = secret().m;
+  const tok = managerTok();
   const headers = Object.assign({ "content-type": "application/json" }, (opts && opts.headers) || {});
   if (tok) headers.authorization = "Bearer " + tok;
   const res = await fetch(base + path, Object.assign({ referrerPolicy: "no-referrer", credentials: "omit" }, opts || {}, { headers }));
@@ -329,7 +335,7 @@ async function mgrApi(path, opts) {
   return body;
 }
 async function refreshCreators() {
-  if (!apiBaseOk(scene && (scene.portalApi || scene.apiBase)) || !secret().m) return;
+  if (!apiBaseOk(scene && (scene.portalApi || scene.apiBase)) || !managerTok()) return;
   try { const data = await mgrApi("/manager/sessions"); live = data.sessions || []; } catch (e) {}
 }
 function creatorsList() {
@@ -349,7 +355,7 @@ function creatorsList() {
   });
 }
 function creatorActionCount() {
-  return creatorsList().reduce((n, p) => n + (p.revoked ? 0 : (p.takes || []).filter((t) => t.status === "uploaded" || t.status === "redo").length), 0);
+  return creatorsList().filter((p) => !p.revoked).length;
 }
 function filmItems(done) {
   const grab = (scene.sections || []).find((s) => s.id === "grabar");
@@ -407,8 +413,8 @@ function creatorsHtml() {
       <div class="tags" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">${pills}</div></div></div>
       <div class="bt" style="padding:8px 6px 12px;flex-wrap:wrap">
         <button class="go" type="button" data-copy="${esc(p.id)}">Copiar link</button>
-        <button class="ghost" type="button" data-extend="${esc(p.id)}">Extender</button>
-        <button class="ghost" type="button" data-revoke="${esc(p.id)}" style="color:var(--bad)">Revocar</button>
+        ${managerTok() ? `<button class="ghost" type="button" data-extend="${esc(p.id)}">Extender</button>
+        <button class="ghost" type="button" data-revoke="${esc(p.id)}" style="color:var(--bad)">Revocar</button>` : ""}
       </div>
       <p class="sub" data-toast style="padding:0 6px 8px"></p>
       ${takes}</section>`;

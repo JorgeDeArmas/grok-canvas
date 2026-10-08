@@ -38,6 +38,16 @@ When the link has a mailbox (`f`) and the card has a numeric `product.id`, each 
 ### hub.html quick links (2026-10-03)
 Scene `quick: [{label, sub, href}]` (max 3) shows big buttons under the tiles, e.g. «Todos los boards · 12 boards». `href` must be https on the SAME origin as the hub (another page of this canvas site); anything else is dropped.
 
+## comando.html
+
+Command center for the encrypted `hub` scene (`type: "hub"` or `"comando"`, v3). The live hub theme uses this viewer. Same origin rules as hub.html; CSP also allows `connect-src` to `https://*.workers.dev` for the creator-portal API.
+
+https://jorgedearmas.github.io/grok-canvas/comando.html#b=<blob>&k=<key>
+
+Tabs: **Mi grabación** (film rows from `grabar` + Hoy group Grabar) and **Creadoras**. The Creadoras badge is the count of active (non-revoked) sessions, not uploaded/redo takes. Creator chips show `jobs[].name` (product name, not the job id). Extender/Revocar render only when a manager token is present: `scene.managerToken` (sealed in the AES-GCM scene with the hub key only Jorge has) or `#m=`. Copiar link always stays. Never put the manager token in the hub URL, in git, or in plaintext. Test: `npm run test:comando`.
+
+Also on this site: `board.html` (unified product board) and `preview.html` (creator briefing, no scene key).
+
 ## boards.html
 
 «Todos los boards»: every product board on this canvas site in one phone list (`type: "boards"`), newest first. Filters: avatar segment (Todos + the scene `avatars`, e.g. Miami X / Bella, with counts) and type chips (from `kinds`, e.g. Video IA / Grabación / Framework); the last filter is remembered in localStorage (`boards:av`, `boards:kind`). Per board: product photo, short name, one line of what it is, status chip, avatar, type, code + date, an optional note (`noteTone: "bad"` = red warning, e.g. a TikTok Shop violation) and «Abrir board», or the `missing` text when the key is gone. Read-only: no mailbox, CSP `img-src data:; connect-src 'self'`.
