@@ -38,7 +38,7 @@ const sealedVid = await sealMedia(JPEG_BYTES);
 
 const fixture = {
   type: "board", id: "FF-003", name: "Toplux magnesio",
-  script: "SHOT 01\nAbre el pomo y enseña la etiqueta.",
+  script: "Escena 01\nAbre el pomo y enseña la etiqueta.",
   beats: [
     { shot: 1, vo: "Mira esto", do_es: "Abre el pomo con la mano derecha.", refFrame: ENC_IMG, ourFrame: ENC_IMG }
   ],
@@ -88,13 +88,14 @@ assert.match(boardTxt, /Abre el pomo/);
 assert.match(boardTxt, /Mira esto/);
 await page.click("#copy-script");
 const copied = await page.evaluate(() => window.__copied);
-assert.ok(copied.some((t) => t.includes("SHOT 01")));
+assert.ok(copied.some((t) => t.includes("Escena 01")));
 await page.waitForFunction(() => {
   const v = document.querySelector("#sec-ref video");
   const imgs = [...document.querySelectorAll("#sec-board img")];
   return v && (v.src || "").startsWith("blob:") && imgs.length >= 2;
 });
-await page.screenshot({ path: path.join(SHOTS, "unified-board.png") });
+await page.evaluate(() => document.getElementById("sec-ref")?.scrollIntoView());
+await page.screenshot({ path: path.join(SHOTS, "unified-board.png"), fullPage: true });
 if (MEDIA) { try { fs.copyFileSync(path.join(SHOTS, "unified-board.png"), path.join(MEDIA, "unified-board.png")); } catch (e) {} }
 await ctx.close();
 await browser.close();
