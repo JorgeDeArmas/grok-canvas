@@ -9,7 +9,7 @@ import { scoreText, render as renderFeed } from "../../lib/screens/feed.js";
 import { render as renderGrabar } from "../../lib/screens/grabar.js";
 import { render as renderCreadoras } from "../../lib/screens/creadoras.js";
 import { render as renderBoards } from "../../lib/screens/boards.js";
-import { adaptCanvasScene, normalizeBoard, renderBoard } from "../../lib/board.js";
+import { adaptCanvasScene, boardViewerKind, normalizeBoard, renderBoard } from "../../lib/board.js";
 import { job } from "../../lib/status.js";
 import { shootDayLabel, spokenIso } from "../../lib/dates.js";
 import { boardDisplayTitle } from "../../lib/lanes.js";
@@ -86,10 +86,41 @@ test("boards v1 shows a plain reference title and keeps the canvas ref", () => {
   assert.doesNotMatch(fw.title, /donor/i);
   assert.doesNotMatch(fw.title, /\bBella\b/);
   const canvas = data.boards.find((b) => b.id === "cv1");
-  assert.equal(canvas.viewer, "canvas");
+  assert.equal(canvas.viewer, "probe");
   assert.equal(canvas.title, "Pack de grabación");
   assert.equal(canvas.ref.b, "canvasblob01");
+  assert.equal(data.boards.find((b) => b.id === "fd1").viewer, "probe");
+  assert.equal(data.boards.find((b) => b.id === "bd1").viewer, "probe");
+  assert.equal(data.boards.find((b) => b.id === "ch1").viewer, "probe");
+  assert.equal(boardViewerKind(canvasFf()), "board");
+  assert.equal(boardViewerKind(canvasCharts()), "canvas");
+  assert.equal(boardViewerKind(creatorFeedLive()), "board");
+  assert.equal(boardViewerKind(boardsV1Live()), "board");
+  const explicit = fromBoards({
+    type: "boards", version: 2,
+    boards: [{ id: "old1", title: "Cifras", viewer: "canvas", kind: "film", status: "to_film" }],
+  });
+  assert.equal(explicit.boards[0].viewer, "canvas");
+  const feedPage = fromBoards({
+    type: "boards", version: 1,
+    boards: [{ id: "f", name: "Feed", what: "Feed", board: "https://example.com/feed.html#b=feedblob01xx&k=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" }],
+  });
+  assert.equal(feedPage.boards[0].viewer, "board");
+  for (const b of data.boards) {
+    if (b.viewer === "probe") b.viewer = b.id === "ch1" ? "canvas" : "board";
+  }
   const html = markup(renderBoards({ boards: data, boardsLane: "all", model: {} }));
+  const row = (id) => {
+    const at = html.indexOf(`open-lib-board:${id}`);
+    assert.ok(at >= 0, id);
+    return html.slice(at, html.indexOf("</button>", at));
+  };
+  for (const id of ["fd1", "bd1", "cv1", "fw1"]) {
+    assert.doesNotMatch(row(id), /Board antiguo/);
+    assert.doesNotMatch(row(id), /board-old/);
+  }
+  assert.match(row("ch1"), /Board antiguo/);
+  assert.match(row("ch1"), /board-old/);
   assert.match(html, /Video de referencia · Creadoras/);
   assert.match(html, /class="board-row-meta"/);
   assert.match(html, /board-row-meta[\s\S]*Por grabar/);

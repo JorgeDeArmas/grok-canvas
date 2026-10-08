@@ -150,6 +150,7 @@ test("live scene shapes: feed, boards, grabar board @LIVE", async ({ page }) => 
       feed: catalog("creator-feed-live"),
       filming: catalog("filming-v2-live"),
       canvas: catalog("canvas-ff"),
+      charts: catalog("canvas-charts"),
     },
   });
   await page.emulateMedia({ colorScheme: "dark" });
@@ -193,11 +194,19 @@ test("live scene shapes: feed, boards, grabar board @LIVE", async ({ page }) => 
   await expect(page.locator("#app")).not.toContainText("Bella");
   const dismiss = page.locator('[data-act="banner-dismiss"]');
   if (await dismiss.count()) await dismiss.first().click();
+  const row = (id) => page.locator(`.board-row[data-act="open-lib-board:${id}"]`);
+  await expect(row("ch1")).toContainText("Board antiguo");
+  await expect(row("ch1").locator(".board-old")).toHaveCount(1);
+  for (const id of ["fd1", "bd1", "cv1"]) {
+    await expect(row(id)).not.toContainText("Board antiguo");
+    await expect(row(id).locator(".board-old")).toHaveCount(0);
+  }
   const saved = page.viewportSize();
   for (const width of [360, 390]) {
     await page.setViewportSize({ width, height: width === 360 ? 800 : 844 });
     await assertBoardPills(page);
     if (darkPhone) await shot(page, `fix-boards-${width}.png`);
+    if (darkPhone && width === 390) await shot(page, "fix-boards-labels-390.png");
   }
   if (saved) await page.setViewportSize(saved);
   if (darkPhone) await shot(page, "fix-boards-dark.png");
