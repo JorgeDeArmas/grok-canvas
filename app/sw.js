@@ -1,4 +1,4 @@
-const VERSION = "2.0.1+2a8c5d4";
+const VERSION = "2.0.1+57407e3";
 const SHELL = "shell-" + VERSION;
 const SCENES = "scenes-v1";
 const MEDIA = "media-v1";

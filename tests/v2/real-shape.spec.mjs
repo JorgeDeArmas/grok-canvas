@@ -86,6 +86,54 @@ async function shot(page, name) {
   await page.screenshot({ path: path.join(DIR, name), fullPage: false });
 }
 
+async function assertBoardPills(page) {
+  await expect(page.locator("#app")).toContainText("Video de referencia · Creadoras");
+  await expect(page.locator("#app")).not.toContainText("donor");
+  await expect(page.locator("#app")).not.toContainText("Framework");
+  const chips = page.locator(".board-row-meta .chip");
+  await expect(chips.first()).toBeVisible();
+  const rows = await chips.evaluateAll((els) => els.map((el) => {
+    const r = el.getBoundingClientRect();
+    const card = el.closest(".card");
+    const c = card ? card.getBoundingClientRect() : r;
+    return {
+      text: (el.innerText || "").replace(/\s+/g, " ").trim(),
+      inside: r.width > 8 && r.left >= c.left - 1 && r.right <= c.right + 1 && r.right <= window.innerWidth + 1 && r.left >= -1,
+      overflow: el.scrollWidth > el.clientWidth + 1,
+      nowrap: getComputedStyle(el).whiteSpace,
+    };
+  }));
+  expect(rows.some((row) => row.text.includes("Por grabar"))).toBe(true);
+  for (const row of rows) {
+    expect(row.inside, JSON.stringify(row)).toBe(true);
+    expect(row.overflow, JSON.stringify(row)).toBe(false);
+    expect(row.nowrap).toBe("nowrap");
+  }
+}
+
+async function assertMiamiOneLine(page) {
+  const chip = page.locator(".feed-root .filter-chip", { hasText: "Miami X" });
+  await expect(chip).toBeVisible();
+  const info = await chip.evaluate((el) => {
+    const range = document.createRange();
+    range.selectNodeContents(el);
+    const r = el.getBoundingClientRect();
+    const lane = el.parentElement.getBoundingClientRect();
+    return {
+      whiteSpace: getComputedStyle(el).whiteSpace,
+      lines: range.getClientRects().length,
+      height: r.height,
+      inside: r.left >= lane.left - 1 && r.right <= lane.right + 1 && r.right <= window.innerWidth + 1,
+      text: (el.textContent || "").replace(/\s+/g, " ").trim(),
+    };
+  });
+  expect(info.text).toBe("Miami X");
+  expect(info.whiteSpace).toBe("nowrap");
+  expect(info.lines).toBe(1);
+  expect(info.height).toBeLessThanOrEqual(48);
+  expect(info.inside).toBe(true);
+}
+
 test("live scene shapes: feed, boards, grabar board @LIVE", async ({ page }) => {
   const cover = await encryptMedia(solidPng(72, 128, [26, 107, 255]), TOKENS.FEED_K);
   const mp4 = colorMp4();
@@ -141,11 +189,17 @@ test("live scene shapes: feed, boards, grabar board @LIVE", async ({ page }) => 
   await page.locator('[data-act="back"]').click();
   await page.locator('[data-act="go-boards"]').click();
   await expect(page.locator("h1")).toContainText("Boards");
-  await expect(page.locator("#app")).toContainText("Framework (donor) para Creadoras");
   await expect(page.locator("#app")).not.toContainText("No hay boards");
   await expect(page.locator("#app")).not.toContainText("Bella");
   const dismiss = page.locator('[data-act="banner-dismiss"]');
   if (await dismiss.count()) await dismiss.first().click();
+  const saved = page.viewportSize();
+  for (const width of [360, 390]) {
+    await page.setViewportSize({ width, height: width === 360 ? 800 : 844 });
+    await assertBoardPills(page);
+    if (darkPhone) await shot(page, `fix-boards-${width}.png`);
+  }
+  if (saved) await page.setViewportSize(saved);
   if (darkPhone) await shot(page, "fix-boards-dark.png");
 
   await page.locator('[data-act="back"]').click();
@@ -157,6 +211,12 @@ test("live scene shapes: feed, boards, grabar board @LIVE", async ({ page }) => 
   await expect(page.locator("#app")).toContainText("Lo quiero");
   await expect(page.locator("a.feed-tt").first()).toHaveAttribute("href", /tiktok\.com/);
   await expect(page.locator(".want")).toHaveText("Lo quiero");
+  if (saved) await page.setViewportSize({ width: 360, height: 800 });
+  await assertMiamiOneLine(page);
+  if (saved) await page.setViewportSize({ width: 390, height: 844 });
+  await assertMiamiOneLine(page);
+  if (darkPhone) await shot(page, "fix-feed-pill-390.png");
+  if (saved) await page.setViewportSize(saved);
   await page.waitForFunction(() => {
     const img = document.querySelector("img.feed-cover");
     return !!(img && !img.hidden && img.src.startsWith("blob:") && img.naturalWidth > 0);

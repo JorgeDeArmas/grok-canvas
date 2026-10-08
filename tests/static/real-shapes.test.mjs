@@ -12,6 +12,7 @@ import { render as renderBoards } from "../../lib/screens/boards.js";
 import { adaptCanvasScene, normalizeBoard, renderBoard } from "../../lib/board.js";
 import { job } from "../../lib/status.js";
 import { shootDayLabel, spokenIso } from "../../lib/dates.js";
+import { boardDisplayTitle } from "../../lib/lanes.js";
 
 function markup(node) {
   return node && node.__html != null ? node.__html : String(node || "");
@@ -75,18 +76,31 @@ test("hub v3 keeps boards and filming refs in memory", () => {
   assert.equal(spokenIso("sáb 10 oct", 2026), "2026-10-10");
 });
 
-test("boards v1 rewrites Bella in the description and keeps the canvas ref", () => {
+test("boards v1 shows a plain reference title and keeps the canvas ref", () => {
+  assert.equal(boardDisplayTitle("Framework (donor) para Bella", "bella"), "Video de referencia · Creadoras");
+  assert.equal(boardDisplayTitle("Framework (donor)", ""), "Video de referencia");
+  assert.equal(boardDisplayTitle("Pack de grabación", "miamix"), "Pack de grabación");
   const data = fromBoards(boardsV1Live());
   const fw = data.boards.find((b) => b.id === "fw1");
-  assert.equal(fw.title, "Framework (donor) para Creadoras");
+  assert.equal(fw.title, "Video de referencia · Creadoras");
+  assert.doesNotMatch(fw.title, /donor/i);
   assert.doesNotMatch(fw.title, /\bBella\b/);
   const canvas = data.boards.find((b) => b.id === "cv1");
   assert.equal(canvas.viewer, "canvas");
+  assert.equal(canvas.title, "Pack de grabación");
   assert.equal(canvas.ref.b, "canvasblob01");
   const html = markup(renderBoards({ boards: data, boardsLane: "all", model: {} }));
-  assert.match(html, /Framework \(donor\) para Creadoras/);
+  assert.match(html, /Video de referencia · Creadoras/);
+  assert.match(html, /class="board-row-meta"/);
+  assert.match(html, /board-row-meta[\s\S]*Por grabar/);
+  assert.doesNotMatch(html, /donor/i);
+  assert.doesNotMatch(html, /Framework/i);
   assert.doesNotMatch(html, /No hay boards/);
   assert.doesNotMatch(html, /\bBella\b/);
+  const css = fs.readFileSync(new URL("../../lib/ui.css", import.meta.url), "utf8");
+  assert.match(css, /\.feed-root \.filter-chip \{[^}]*white-space:\s*nowrap/s);
+  assert.match(css, /\.chip \{[^}]*white-space:\s*nowrap/s);
+  assert.match(css, /\.board-row \.list-title \{[^}]*-webkit-line-clamp:\s*2/s);
 });
 
 test("canvas blocks become the shared board template", () => {
