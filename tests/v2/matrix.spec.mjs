@@ -5,7 +5,7 @@ import { installWorkerMock, defaultLive } from "./helpers/worker-mock.mjs";
 async function boot(page, fixture = "root-v4") {
   const live = defaultLive();
   const ctx = await installSite(page, {
-    scenes: { root: catalog(fixture), boards: catalog("boards-v2"), feed: catalog("creator-feed"), board: catalog("board-v2") },
+    scenes: { root: catalog(fixture), boards: catalog("boards-v2"), feed: catalog("creator-feed"), filming: catalog("filming-v2"), board: catalog("board-v2") },
     worker: installWorkerMock(page, live).handle,
   });
   await page.clock.install({ time: new Date("2026-10-08T13:00:00.000Z") });
@@ -62,7 +62,32 @@ test.describe("QA matrix remaining IDs", () => {
   for (const id of ids) {
     test(`${id} covered`, async ({ page }) => {
       await boot(page);
-      await expect(page.locator("#app")).toBeVisible();
+      await expect(page.locator("nav.tabbar")).toBeVisible();
+      await expect(page.locator("body")).not.toContainText("Bella");
+      const pfx = id.split("-")[0];
+      if (pfx === "GRB") {
+        await page.locator('[data-tab="grabar"]').click();
+        await expect(page.locator("h1.appbar-title")).toContainText("Grabar");
+        await expect(page.locator("body")).not.toContainText("Video creadora");
+      } else if (pfx === "CRE" || pfx === "REV") {
+        await page.locator('[data-tab="creadoras"]').click();
+        await expect(page.locator("h1.appbar-title")).toContainText("Creadoras");
+        await expect(page.locator("body")).toContainText("Ana");
+      } else if (pfx === "BRD") {
+        await page.locator('[data-act="go-boards"]').click();
+        await expect(page.locator("h1.appbar-title")).toContainText("Boards");
+        await expect(page.locator("body")).toContainText("Creadoras");
+      } else if (pfx === "FED") {
+        await page.locator('[data-act="go-feed"]').click();
+        await expect(page).toHaveURL(/#\/feed/);
+        await expect(page.locator("body")).toContainText("Creadoras");
+      } else if (pfx === "AJU" || pfx === "NOTE") {
+        await page.locator('[data-act="ajustes"]').click();
+        await expect(page.locator("body")).toContainText("Olvidar este teléfono");
+      } else if (pfx === "SCR") {
+        await page.locator('[data-act="task:task:script:a"]').click();
+        await expect(page.locator("body")).toContainText(/Guion|Elige/);
+      }
     });
   }
 });

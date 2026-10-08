@@ -157,7 +157,11 @@ export function render() {
     return;
   }
   const r = store.route;
-  if (r.name === "bienvenida" || (!store.model && !store.single && !store.loading && !store.bootError)) {
+  if (r.name === "bienvenida" && !store.model) {
+    setHtml(el, bienvenida.render(store));
+    return;
+  }
+  if (!store.model && !store.single && !store.loading && !store.bootError && !store.keyChanged && !store.rootBlob) {
     setHtml(el, bienvenida.render(store));
     return;
   }
@@ -183,9 +187,21 @@ export function render() {
   if (r.name === "dashboard") actions.push({ act: "ajustes", icon: "settings", label: t("nav.settings"), iconOnly: true });
   if (r.name === "grabar") actions.push({ act: "go-boards", icon: "layout-grid", label: t("nav.boards") });
   const back = PUSH.has(r.name) && r.name !== "bienvenida" && !store.single;
-  const body = screenBody(r);
+  let body;
+  try {
+    body = store.model || store.single || store.feed || store.boards || store.board
+      ? screenBody(r)
+      : ErrorState({
+        icon: store.keyChanged ? "link-2-off" : "triangle-alert",
+        title: t(store.keyChanged ? "banner.keychanged" : "err.decrypt.title"),
+        body: t(store.keyChanged ? "banner.keychanged" : "err.decrypt.body"),
+        action: t("banner.keychanged.cta"), act: "paste",
+      });
+  } catch {
+    body = ErrorState({ icon: "triangle-alert", title: t("err.decrypt.title"), action: t("common.retry"), act: "retry" });
+  }
   const chrome = html`
-    ${isTab || back || r.name === "ajustes" || r.name === "boards" || r.name === "board" || r.name === "feed" ? AppBar({
+    ${isTab || (back && r.name !== "feed") || r.name === "ajustes" || r.name === "boards" || r.name === "board" ? AppBar({
       title, variant: isTab ? "large" : "compact", back, actions: r.name === "feed" ? [] : actions,
       status: isTab ? statusLine() : null, collapsed: store.collapsed,
     }) : raw("")}
@@ -342,9 +358,13 @@ async function handleAct(act, el, ev) {
   if (name === "go-grabar") { setRoute({ name: "grabar" }); return; }
   if (name === "go-feed") {
     if (!store.hasFeedKey && !store.feed) { toast(t("toast.feedNeedLink")); return; }
+    await loadFeed();
     setRoute({ name: "feed" }); return;
   }
-  if (name === "go-boards") { setRoute({ name: "boards" }); return; }
+  if (name === "go-boards") {
+    await loadBoards();
+    setRoute({ name: "boards" }); return;
+  }
   if (name === "go-review") { setRoute({ name: "creadoras", sheet: "review", sid: arg }); store.overlay = { kind: "review", sid: arg }; render(); return; }
   if (name === "tab" || el?.dataset.tab) {
     const id = el.dataset.tab;
@@ -679,7 +699,7 @@ async function loadRoot() {
   const row = await getKey("root");
   if (!row) {
     store.loading = false;
-    if (!store.single) store.route = { name: "bienvenida" };
+    if (!store.model && !store.single) store.route = { name: "bienvenida" };
     render();
     return;
   }
@@ -689,6 +709,7 @@ async function loadRoot() {
     store.model = adaptRoot(scene);
     store.bootError = null;
     store.keyChanged = false;
+    store.refreshError = false;
     if (scene.keyring?.filming && await getKey("filming")) {
       try {
         const f = await decryptSceneFor("filming");
@@ -699,14 +720,23 @@ async function loadRoot() {
     store.hasFeedKey = !!(await getKey("feed"));
     store.keys = await allKeys();
     store.loading = false;
+    await loadBoards();
+    await loadFeed();
     render();
-    prefetch();
     refreshLive();
   } catch (e) {
     store.loading = false;
-    if (e.message === "404" || e.message === "decrypt") store.keyChanged = true;
-    else if (!navigator.onLine) store.bootError = "offlineFirst";
-    else store.bootError = "decrypt";
+    store.keys = await allKeys().catch(() => store.keys || []);
+    if (store.model) {
+      store.refreshError = true;
+      if (e.message === "404" || e.message === "decrypt") store.keyChanged = true;
+    } else if (e.message === "404" || e.message === "decrypt") {
+      store.keyChanged = true;
+    } else if (!navigator.onLine) {
+      store.bootError = "offlineFirst";
+    } else {
+      store.bootError = "decrypt";
+    }
     render();
   }
 }
@@ -728,25 +758,32 @@ async function refreshLive() {
   render();
 }
 
-async function prefetch() {
-  const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 1500));
-  idle(async () => {
-    if (navigator.connection?.saveData) return;
-    try {
-      if (await getKey("boards")) {
-        const { scene } = await decryptSceneFor("boards");
-        store.boards = fromBoards(scene);
-      }
-    } catch { store.feedError = true; }
-    try {
-      if (await getKey("feed")) {
-        const { scene, row } = await decryptSceneFor("feed");
-        store.feed = normalizeFeed(scene);
-        store.feedBlob = row.b;
-        store.feedF = row.f;
-        store.hasFeedKey = true;
-      }
-    } catch { /* ignore */ }
+async function loadBoards() {
+  try {
+    if (await getKey("boards")) {
+      const { scene } = await decryptSceneFor("boards");
+      store.boards = fromBoards(scene);
+      store.boardsLane = store.boardsLane || loadLane();
+    }
+  } catch { store.feedError = true; }
+}
+
+async function loadFeed() {
+  try {
+    if (await getKey("feed")) {
+      const { scene, row } = await decryptSceneFor("feed");
+      store.feed = normalizeFeed(scene);
+      store.feedBlob = row.b;
+      store.feedF = row.f;
+      store.hasFeedKey = true;
+    }
+  } catch { /* ignore */ }
+}
+
+function prefetch() {
+  Promise.resolve().then(async () => {
+    await loadBoards();
+    await loadFeed();
     render();
   });
 }
@@ -771,6 +808,11 @@ async function consumeHash() {
     const dest = r.type === "filming" ? "#/grabar" : r.type === "boards" ? "#/boards" : r.type === "creator-feed" ? "#/feed" : r.type === "board" ? "#/board/" + r.blobId : r.type === "manager" ? "#/creadoras" : "#/dashboard";
     history.replaceState(null, "", location.pathname + dest);
     store.route = parseRoute(dest);
+    if (r.scene && (r.type === "hub" || r.type === "comando")) {
+      store.model = adaptRoot(r.scene);
+      store.rootBlob = r.blobId || "";
+      store.loading = false;
+    }
   } else {
     store.single = true;
     if (r.type === "filming") { store.model = fromFilming(r.scene); store.route = { name: "grabar" }; }
@@ -782,12 +824,15 @@ async function consumeHash() {
   }
 }
 
+let pendingSwReload = false;
+
 function skipWaiting() {
   if (store.uploading || typing) {
     store.overlay = { kind: "dialog", title: t("upd.busy"), confirmLabel: t("common.understood"), confirmKind: "primary", confirmAct: "cancel" };
     render();
     return;
   }
+  pendingSwReload = true;
   swReg?.waiting?.postMessage({ type: "SKIP_WAITING" });
 }
 
@@ -808,7 +853,9 @@ async function registerSw() {
         if (swReg.waiting) { store.swWaiting = true; render(); }
       });
     });
-    navigator.serviceWorker.addEventListener("controllerchange", () => location.reload());
+    navigator.serviceWorker.addEventListener("controllerchange", () => {
+      if (pendingSwReload) location.reload();
+    });
   } catch { /* optional */ }
 }
 
@@ -847,7 +894,7 @@ root()?.addEventListener("click", (ev) => {
   if (!el) return;
   if (el.tagName === "INPUT" && el.type === "file") return;
   ev.preventDefault();
-  handleAct(el.getAttribute("data-act") || "", el, ev);
+  handleAct(el.getAttribute("data-act") || (el.dataset.tab ? "tab" : ""), el, ev);
 });
 root()?.addEventListener("change", (ev) => {
   const el = ev.target;
@@ -881,4 +928,4 @@ setInterval(() => { store.now = new Date(); if (showTabs()) render(); }, 30000);
 setInterval(() => { if (!document.hidden) refreshRoot(); }, 60000);
 
 boot();
-export { store, render, boot };
+export { store, boot };

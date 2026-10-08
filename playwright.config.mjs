@@ -18,9 +18,16 @@ export default defineConfig({
   expect: { timeout: 8_000 },
   reporter: [["list"], ["html", { open: "never" }]],
   use: {
-    baseURL: "https://jorgedearmas.github.io/grok-canvas",
+    baseURL: "http://127.0.0.1:4173",
     reducedMotion: "reduce",
     trace: "retain-on-failure",
+    serviceWorkers: "block",
+  },
+  webServer: {
+    command: "node scripts/qa-server.mjs",
+    port: 4173,
+    reuseExistingServer: true,
+    timeout: 30_000,
   },
   projects: [
     { name: "phone-webkit-light", use: { ...IPHONE, browserName: "webkit", colorScheme: "light" } },

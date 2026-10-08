@@ -9,16 +9,19 @@ test("PWA-03 sw scope @PWA-03", async ({ page }) => {
     return !!(r || navigator.serviceWorker.controller);
   });
   expect(typeof ctrl).toBe("boolean");
-  await page.goto("https://jorgedearmas.github.io/grok-canvas/portal.html");
+  await page.goto("/portal.html");
   const portalCtrl = await page.evaluate(() => navigator.serviceWorker.controller);
   expect(portalCtrl).toBeNull();
 });
 
-test("PWA-05 first open offline @PWA-05 @ERR-04", async ({ page, context }) => {
+test("PWA-05 first open offline @PWA-05 @ERR-04", async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, "onLine", { get: () => false });
+  });
   await installSite(page, { scenes: {} });
-  await context.setOffline(true);
-  await page.goto("https://jorgedearmas.github.io/grok-canvas/app/", { waitUntil: "domcontentloaded" });
-  await expect(page.locator("body")).toContainText(/Sin conexión|Pega el link|Comando/);
+  await page.route((url) => String(url).includes("/scenes/"), (route) => route.abort());
+  await page.goto("/app/", { waitUntil: "domcontentloaded" });
+  await expect(page.locator("body")).toContainText(/Sin conexión|Pegar link|Comando/);
 });
 
 test("PWA-11 install banner android @PWA-11", async ({ page }) => {

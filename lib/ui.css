@@ -353,8 +353,8 @@ button { appearance: none; border: 0; background: none; cursor: pointer; }
 .empty p { margin: 0; font-size: var(--t-callout); color: var(--text-2); }
 
 .skeleton { background: var(--surface-pressed); border-radius: var(--r-md); }
-.sk-hero { height: 120px; margin-bottom: 12px; }
-.sk-row { height: 64px; margin-bottom: 2px; }
+.skeleton-hero { height: 120px; margin-bottom: 12px; }
+.skeleton-row { height: 64px; margin-bottom: 2px; }
 @keyframes shimmer { to { filter: brightness(1.08); } }
 .skeleton { animation: shimmer 1.2s linear infinite; }
 

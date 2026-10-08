@@ -11,7 +11,6 @@ async function boot(page, fixture = "root-v4", extras = {}) {
     worker: worker.handle,
     ...extras,
   });
-  await page.clock.install({ time: new Date("2026-10-08T13:00:00.000Z") });
   await openApp(page, ctx.sealed.root);
   await expect(page.locator("#app")).not.toHaveText(/Cargando/, { timeout: 15_000 });
   return ctx;
@@ -111,7 +110,7 @@ test("CRE-08 read-only without manager @CRE-08", async ({ page }) => {
 
 test("ONB-01 bienvenida @ONB-01", async ({ page }) => {
   await installSite(page, { scenes: {} });
-  await page.goto("https://jorgedearmas.github.io/grok-canvas/app/", { waitUntil: "domcontentloaded" });
+  await page.goto("/app/", { waitUntil: "domcontentloaded" });
   await expect(page.locator("h1")).toContainText("Comando");
   await expect(page.locator('[data-act="paste"]')).toContainText(t("onb.paste"));
   await expect(page.locator("body")).toContainText(t("onb.hint"));
@@ -120,7 +119,7 @@ test("ONB-01 bienvenida @ONB-01", async ({ page }) => {
 
 test("ONB-04 inline errors @ONB-04", async ({ page }) => {
   await installSite(page, { scenes: {} });
-  await page.goto("https://jorgedearmas.github.io/grok-canvas/app/", { waitUntil: "domcontentloaded" });
+  await page.goto("/app/", { waitUntil: "domcontentloaded" });
   await page.locator("textarea").fill("hola");
   await page.locator('[data-act="open-typed"]').click();
   await expect(page.locator("[role=alert]")).toBeVisible();

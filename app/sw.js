@@ -1,4 +1,4 @@
-const VERSION = "2.0.0+2171b9a";
+const VERSION = "2.0.0+4762ed2";
 const SHELL = "shell-" + VERSION;
 const SCENES = "scenes-v1";
 const MEDIA = "media-v1";
@@ -31,7 +31,13 @@ const PRECACHE = [
 self.addEventListener("install", (event) => {
   event.waitUntil((async () => {
     const cache = await caches.open(SHELL);
-    await cache.addAll(PRECACHE.map((u) => u + (u.includes("?") ? "&" : "?") + "v=" + encodeURIComponent(VERSION)));
+    await Promise.all(PRECACHE.map(async (u) => {
+      const url = u + (u.includes("?") ? "&" : "?") + "v=" + encodeURIComponent(VERSION);
+      try {
+        const res = await fetch(url, { cache: "reload" });
+        if (res.ok) await cache.put(u, res);
+      } catch { /* skip missing shell file */ }
+    }));
   })());
 });
 
@@ -64,7 +70,7 @@ function isApi(url) {
 self.addEventListener("fetch", (event) => {
   const req = event.request;
   const url = new URL(req.url);
-  if (req.mode === "navigate" && url.pathname.includes("/grok-canvas/app")) {
+  if (req.mode === "navigate" && /\/(grok-canvas\/)?app\/?/.test(url.pathname)) {
     event.respondWith((async () => {
       const cache = await caches.open(SHELL);
       return (await cache.match("./index.html", { ignoreSearch: true })) || fetch(req);

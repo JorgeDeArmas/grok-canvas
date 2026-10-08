@@ -24,6 +24,7 @@ export function rootV4(overrides = {}) {
     mailbox: MAIL,
     portalApi: API,
     managerToken: MGR,
+    ownerToken: OWN,
     keyring: {
       boards: { b: BRD_B, k: BRD_K },
       feed: { b: FEED_B, k: FEED_K, f: MAIL },
@@ -140,6 +141,7 @@ export function boardsV2() {
       id: `b${i}`, product: "pa", lane: i % 4 === 0 ? "bella" : "miamix", status,
       title: `Video ${i + 1}`, date: "2026-10-0" + ((i % 8) + 1), kind: status === "to_approve" ? "ai" : "film",
       viewer: "board",
+      ref: { b: "boardblob01xx", k: "DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD" },
     });
   });
   boards.push({ id: "guide1", product: "pa", lane: "miamix", status: "published", title: "Guía de luz", kind: "guide", viewer: "board" });
