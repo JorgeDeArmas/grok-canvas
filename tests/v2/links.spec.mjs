@@ -1,13 +1,20 @@
 import { test, expect } from "@playwright/test";
 import { installSite, catalog } from "./helpers/site.mjs";
 
+function watchAppHash(page) {
+  const hops = [];
+  page.on("framenavigated", (frame) => {
+    if (frame === page.mainFrame()) hops.push(frame.url());
+  });
+  return hops;
+}
+
 test("LNK-01 comando redirector @LNK-01", async ({ page }) => {
   const ctx = await installSite(page, { scenes: { root: catalog("root-v4") } });
-  const requests = [];
-  page.on("request", (r) => requests.push(r.url()));
+  const hops = watchAppHash(page);
   await page.goto(`/comando.html${ctx.sealed.root.hash}`, { waitUntil: "domcontentloaded" });
   await expect(page).toHaveURL(/\/app\//);
-  expect(page.url()).toContain("b=");
+  expect(hops.some((u) => u.includes("/app/") && /[?#&]b=/.test(u))).toBeTruthy();
 });
 
 test("LNK-02 hub redirector @LNK-02", async ({ page }) => {
