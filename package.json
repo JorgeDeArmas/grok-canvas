@@ -2,7 +2,7 @@
   "name": "grok-canvas",
   "private": true,
   "scripts": {
-    "test": "npm run test:hub && npm run test:grabacion && npm run test:hub-scripts && npm run test:boards && npm run test:portal && npm run test:manager && npm run test:secrets",
+    "test": "npm run test:hub && npm run test:grabacion && npm run test:hub-scripts && npm run test:boards && npm run test:portal && npm run test:manager && npm run test:comando && npm run test:board && npm run test:secrets",
     "test:feed": "node tests/run-feed.mjs",
     "test:hub": "node tests/run-hub.mjs",
     "test:grabacion": "node tests/run-grabacion.mjs",
@@ -10,6 +10,8 @@
     "test:boards": "node tests/run-boards.mjs",
     "test:portal": "node tests/run-portal.mjs",
     "test:manager": "node tests/run-manager.mjs",
+    "test:comando": "node tests/run-comando.mjs",
+    "test:board": "node tests/run-board.mjs",
     "test:secrets": "bash scripts/check-secrets.sh"
   },
   "devDependencies": {

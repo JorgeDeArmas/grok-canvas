@@ -22,6 +22,8 @@ assert.match(html, /function putPart[\s\S]*partAuthHeaders/);
 assert.match(html, /function decryptMediaNow/);
 assert.match(html, /blob:/);
 assert.doesNotMatch(html, /refHint|refSrc:\s*["']["']/);
+assert.match(html, /Graba en 1080p/);
+assert.doesNotMatch(html, /ACCIÓN:|como el donor|Sin beats/);
 
 const JPEG = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wAAAAD/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAn/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIQAxAAAAD/AP/EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAT8Af//Z";
 const JPEG_BYTES = Uint8Array.from(Buffer.from(JPEG.split(",")[1], "base64"));
@@ -205,11 +207,13 @@ async function open(name, token, opts) {
   await page.waitForSelector("#sec-ref");
   const ids = await page.locator("article").evaluateAll((els) => els.map((e) => e.id));
   assert.deepEqual(ids, ["sec-ref", "sec-board", "sec-script", "sec-up"]);
-  assert.match(await page.locator("#sec-board").innerText(), /ACCIÓN/);
-  assert.match(await page.locator("#sec-board").innerText(), /Abre el cajón/);
-  assert.match(await page.locator("#sec-board").innerText(), /Referencia/);
-  assert.match(await page.locator("#sec-board").innerText(), /Tu escena/);
-  assert.match(await page.locator("#sec-board").innerText(), /Mira esto/);
+  const boardTxt = await page.locator("#sec-board").innerText();
+  assert.doesNotMatch(boardTxt, /ACCIÓN|donor|\bVO\b|\bpack\b|\bbeats?\b/i);
+  assert.match(boardTxt, /Abre el cajón/);
+  assert.match(boardTxt, /Referencia/);
+  assert.match(boardTxt, /La nuestra/);
+  assert.match(boardTxt, /Mira esto/);
+  assert.match(await page.locator("#sec-up").innerText(), /Graba en 1080p/);
   assert.doesNotMatch(await page.locator("#sec-ref").innerText(), /Video de referencia en el board cifrado|Sin video de referencia/);
   await page.waitForFunction(() => {
     const v = document.querySelector("#sec-ref video");
