@@ -338,6 +338,32 @@ async function refreshCreators() {
   if (!apiBaseOk(scene && (scene.portalApi || scene.apiBase)) || !managerTok()) return;
   try { const data = await mgrApi("/manager/sessions"); live = data.sessions || []; } catch (e) {}
 }
+function jobId(j) {
+  return String((j && (j.job_id || j.jobId || j.id)) || "").toUpperCase();
+}
+function mergeJobs(sceneJobs, liveJobs) {
+  // Live portal jobs often only have job_id + status. Keep the scene's product
+  // name and thumbnail; take status from live when present.
+  const sceneList = Array.isArray(sceneJobs) ? sceneJobs : [];
+  const liveList = Array.isArray(liveJobs) ? liveJobs : [];
+  const byId = {};
+  for (let i = 0; i < sceneList.length; i++) {
+    const id = jobId(sceneList[i]);
+    if (id) byId[id] = sceneList[i];
+  }
+  const src = liveList.length ? liveList : sceneList;
+  return src.slice(0, 40).map((j) => {
+    const sj = byId[jobId(j)] || {};
+    const name = cleanText(sj.name || sj.title, 48);
+    const out = {
+      job_id: j.job_id || sj.job_id || j.id || "",
+      name: name,
+      status: j.status || sj.status || "sent"
+    };
+    if (sj.thumb) out.thumb = sj.thumb;
+    return out;
+  });
+}
 function creatorsList() {
   const fromScene = Array.isArray(scene.creators) ? scene.creators : (Array.isArray(scene.portals) ? scene.portals : []);
   return fromScene.slice(0, 40).map((p) => {
@@ -349,7 +375,7 @@ function creatorsList() {
       expiresAt: cleanText(p.expiresAt || p.expires_at || liveS.expires_at, 32),
       revoked: !!(liveS.revoked_at || p.revoked),
       link: String(p.link || "").slice(0, 2048),
-      jobs: (liveS.jobs || p.jobs || []).slice(0, 40),
+      jobs: mergeJobs(p.jobs, liveS.jobs),
       takes: (liveS.takes || p.takes || []).slice(0, 80)
     };
   });
