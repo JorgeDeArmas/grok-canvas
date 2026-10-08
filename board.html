@@ -6,7 +6,7 @@
 <meta name="referrer" content="no-referrer">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' data: blob: https://cdn.jsdelivr.net; media-src 'self' blob: https://cdn.jsdelivr.net; connect-src 'self' https://cdn.jsdelivr.net https://*.workers.dev https://*.r2.cloudflarestorage.com; base-uri 'none'; form-action 'none'; object-src 'none'; frame-ancestors 'none'">
 <meta name="theme-color" content="#f2f2f7">
-<title>Portal</title>
+<title>Board</title>
 <style>
   :root { color-scheme: light dark; --bg: #f2f2f7; --card: #fff; --text: #1c1c1e; --muted: #6e6e73; --line: rgba(60,60,67,.14);
     --accent: #007aff; --chip: #e9e9ee; --bad: #ff3b30; --good: #34c759; --warn: #ff9500; --info: #007aff; --teal: #30b0c7;
@@ -237,7 +237,7 @@ async function renderPlp() {
   view = "plp"; productId = "";
   $("back").hidden = true;
   const name = txt(scene.creatorName, 40) || "creadora";
-  $("title").textContent = "Hola, " + name;
+  $("title").textContent = name === "creadora" ? "Board" : "Hola, " + name;
   $("meta").textContent = (scene.products || []).length + " productos";
   const rows = (scene.products || []).map((p) => {
     const st = jobStatus(p.id);
