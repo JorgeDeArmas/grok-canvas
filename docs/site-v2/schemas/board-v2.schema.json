@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jorgedearmas.github.io/grok-canvas/docs/site-v2/schemas/board-v2.schema.json",
+  "title": "Board scene v2 (shared template: Jorge's boards and AI boards)",
+  "description": "Plaintext shape BEFORE sealing. Built by publish_board.py (G-5). v1 boards (type board without version) remain valid for the viewer. See ARCHITECTURE.md §7.4.",
+  "type": "object",
+  "required": ["type", "version", "id", "name", "beats"],
+  "additionalProperties": false,
+  "properties": {
+    "type": { "const": "board" },
+    "version": { "const": 2 },
+    "id": { "type": "string", "pattern": "^[a-z0-9_-]{1,40}$" },
+    "job": { "type": "string", "pattern": "^(FF|ff|JOB|job)-\\d{1,4}$", "description": "Internal; used only to map owner uploads to Worker jobs. Never displayed." },
+    "name": { "type": "string", "minLength": 2, "maxLength": 60, "not": { "pattern": "(^([Pp]roducto|[Vv]ideo)$|\\b[Ff][Ff]-\\d{3}\\b|[Bb][Ee][Ll][Ll][Aa])" } },
+    "thumb": { "$ref": "#/$defs/encImage" },
+    "lane": { "enum": ["miamix", "bella", "creadoras"] },
+    "status": { "enum": ["preparing", "to_film", "filmed", "editing", "to_publish", "published", "to_approve", "problem", "retired"] },
+    "refSrc": { "$ref": "#/$defs/encVideo" },
+    "beats": {
+      "type": "array", "maxItems": 40,
+      "items": {
+        "type": "object", "additionalProperties": false, "required": ["shot", "vo"],
+        "properties": {
+          "shot": { "type": "integer", "minimum": 1, "maximum": 99 },
+          "vo": { "type": "string", "minLength": 1, "maxLength": 400, "description": "Shown in «Lo que dices» (HR-04)." },
+          "do_es": { "type": "string", "maxLength": 500, "description": "Shown in «Qué haces» (secondary)." },
+          "refFrame": { "$ref": "#/$defs/encImage" },
+          "ourFrame": { "$ref": "#/$defs/encImage" }
+        }
+      }
+    },
+    "script": { "type": "string", "maxLength": 20000 },
+    "shots": {
+      "type": "array", "maxItems": 40,
+      "items": {
+        "type": "object", "additionalProperties": false, "required": ["shot", "takes"],
+        "properties": {
+          "shot": { "type": "integer", "minimum": 1, "maximum": 99 },
+          "takes": { "type": "integer", "minimum": 1, "maximum": 5 }
+        }
+      }
+    },
+    "approvals": {
+      "description": "AI boards (Q-05): replaces the «Subir video» section with «Aprobar». Payload {kind:approve, blockId:id, choice:go|changes}.",
+      "type": "array", "maxItems": 12,
+      "items": {
+        "type": "object", "additionalProperties": false, "required": ["id", "label", "kind", "media"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^[A-Za-z0-9:_.-]{1,120}$" },
+          "label": { "type": "string", "maxLength": 40 },
+          "kind": { "enum": ["video", "image"] },
+          "media": { "oneOf": [{ "$ref": "#/$defs/encImage" }, { "$ref": "#/$defs/encVideo" }] }
+        }
+      }
+    },
+    "mailbox": { "type": "string", "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$" }
+  },
+  "$defs": {
+    "encSrc": { "type": "string", "pattern": "^(media/m[a-f0-9]{16}\\.enc|https://cdn\\.jsdelivr\\.net/.+/media/m[a-f0-9]{16}\\.enc)$" },
+    "encImage": {
+      "type": "object", "additionalProperties": false, "required": ["enc", "src", "mime"],
+      "properties": { "enc": { "const": true }, "src": { "$ref": "#/$defs/encSrc" }, "mime": { "enum": ["image/jpeg", "image/png", "image/webp"] } }
+    },
+    "encVideo": {
+      "type": "object", "additionalProperties": false, "required": ["enc", "src", "mime"],
+      "properties": { "enc": { "const": true }, "src": { "$ref": "#/$defs/encSrc" }, "mime": { "enum": ["video/mp4", "video/webm", "video/quicktime"] } }
+    }
+  }
+}

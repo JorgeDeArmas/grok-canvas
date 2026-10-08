@@ -11,7 +11,19 @@ jobs:
         with:
           node-version: "22"
       - run: npm ci
-      - run: npx playwright install chromium --with-deps
+      - run: npx playwright install chromium webkit --with-deps
+      - run: node scripts/vendor-icons.mjs --check
+      - run: node scripts/make-icons.mjs --check
+      - run: node scripts/release.mjs --check
       - run: npm test
+      - run: npx playwright test --retries=0
+        env:
+          CI: "1"
       - name: gitleaks-style secret check
         run: bash scripts/check-secrets.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report
+          path: playwright-report
+          if-no-files-found: ignore

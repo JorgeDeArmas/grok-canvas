@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jorgedearmas.github.io/grok-canvas/docs/site-v2/schemas/portal-v2.schema.json",
+  "title": "Creator portal scene v2",
+  "description": "Plaintext shape BEFORE sealing. Built by portal_build.py (G-6). v1 (no version) stays valid. FORBIDDEN anywhere in this scene: editor_brief, commissions, costs, managerToken, ownerToken, keyring, other creators. See ARCHITECTURE.md §7.5.",
+  "type": "object",
+  "required": ["type", "creatorName", "apiBase", "products"],
+  "additionalProperties": false,
+  "properties": {
+    "type": { "const": "portal" },
+    "version": { "const": 2 },
+    "creatorName": { "type": "string", "minLength": 1, "maxLength": 40 },
+    "shootDate": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
+    "expiresAt": { "type": "string", "format": "date-time" },
+    "apiBase": { "type": "string", "pattern": "^https://[a-z0-9-]+(\\.[a-z0-9-]+)*\\.workers\\.dev/?$" },
+    "products": {
+      "type": "array", "maxItems": 40,
+      "items": {
+        "type": "object", "additionalProperties": false, "required": ["id", "name"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^[A-Za-z0-9_-]{1,16}$" },
+          "name": { "type": "string", "minLength": 2, "maxLength": 48 },
+          "thumb": { "oneOf": [{ "$ref": "board-v2.schema.json#/$defs/encImage" }, { "type": "string", "pattern": "^data:image/jpeg;base64,[A-Za-z0-9+/]+={0,2}$", "maxLength": 60000 }] },
+          "blob": { "type": "string", "pattern": "^[A-Za-z0-9_-]{8,40}$" },
+          "status": { "enum": ["sent", "opened", "uploading", "uploaded", "approved", "redo", "pulled"] },
+          "script": { "type": "string", "maxLength": 20000 },
+          "beats": { "$ref": "board-v2.schema.json#/properties/beats" },
+          "shots": { "$ref": "board-v2.schema.json#/properties/shots" },
+          "refSrc": { "$ref": "board-v2.schema.json#/$defs/encVideo" }
+        }
+      }
+    }
+  },
+  "not": {
+    "anyOf": [
+      { "required": ["managerToken"] },
+      { "required": ["ownerToken"] },
+      { "required": ["keyring"] },
+      { "required": ["editor_brief"] }
+    ]
+  }
+}
