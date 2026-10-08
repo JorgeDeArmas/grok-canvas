@@ -4,7 +4,8 @@ import path from "node:path";
 import { installSite, catalog, openApp } from "./helpers/site.mjs";
 import { installWorkerMock, defaultLive } from "./helpers/worker-mock.mjs";
 
-const DIR = "/cursor/stores/bc-0791c206-427a-5891-b089-3334282963d0/media";
+const DIR = process.env.SITE_V2_SHOT_DIR
+  || path.resolve("test-results", "site-v2-shots");
 
 async function shot(page, name) {
   fs.mkdirSync(DIR, { recursive: true });
