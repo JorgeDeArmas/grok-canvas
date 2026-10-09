@@ -434,8 +434,31 @@ button { appearance: none; border: 0; background: none; cursor: pointer; }
 
 .feed-root { background: #000; color: #fff; min-height: 100dvh; }
 .feed-root .muted { color: rgba(255, 255, 255, .72); }
+.feed-top {
+  position: sticky; top: 0; z-index: 2; flex: none;
+  display: flex; align-items: center; gap: 8px;
+  padding: calc(8px + var(--safe-t)) 8px 8px; background: #000;
+}
+.feed-empty { padding: 80px 16px; }
+#app.feed-open {
+  height: 100dvh; max-height: 100dvh; overflow: hidden;
+}
+#app.feed-open > .banner,
+#app.feed-open > .appbar { flex: none; }
+#app.feed-open .screen {
+  flex: 1 1 0; min-height: 0; display: flex; flex-direction: column;
+  padding-top: 0; padding-bottom: 0; overflow: hidden;
+}
+#app.feed-open .feed-root {
+  flex: 1 1 0; min-height: 0; height: 100%;
+  display: grid; grid-template-rows: auto minmax(0, 1fr);
+}
+#feed-snap {
+  min-height: 0; height: 100%; overflow-y: auto;
+  scroll-snap-type: y mandatory;
+}
 .feed-card {
-  position: relative; min-height: 100%; scroll-snap-align: start; scroll-snap-stop: always;
+  position: relative; height: 100%; min-height: 100%; scroll-snap-align: start; scroll-snap-stop: always;
   background: #111; color: #fff; overflow: hidden;
 }
 .feed-media, .feed-cover, .feed-preview {

@@ -153,6 +153,7 @@ export function render() {
   if (typing) return;
   const el = root();
   if (!el) return;
+  el.classList.toggle("feed-open", store.route?.name === "feed");
   if (!okHost()) {
     setHtml(el, ErrorState({ icon: "link-2-off", title: t("err.host.title") }));
     return;
@@ -875,7 +876,14 @@ async function consumeHash() {
     store.single = true;
     if (r.type === "filming") { store.model = fromFilming(r.scene); store.route = { name: "grabar" }; }
     else if (r.type === "boards") { store.boards = fromBoards(r.scene); store.route = { name: "boards" }; }
-    else if (r.type === "creator-feed") { store.feed = normalizeFeed(r.scene); store.route = { name: "feed" }; }
+    else if (r.type === "creator-feed") {
+      store.feed = normalizeFeed(r.scene);
+      store.feedKey = r.keyText;
+      store.feedBlob = r.blobId;
+      store.feedF = r.f;
+      store.hasFeedKey = !!r.keyText;
+      store.route = { name: "feed" };
+    }
     else if (r.type === "board") { store.board = r.scene; store.route = { name: "board", id: r.blobId }; }
     else if (r.type === "manager") { store.model = adaptRoot(r.scene); store.route = { name: "creadoras" }; memoryM = r.memoryM; }
     store.loading = false;
@@ -894,6 +902,15 @@ function skipWaiting() {
   swReg?.waiting?.postMessage({ type: "SKIP_WAITING" });
 }
 
+function noteSwWaiting() {
+  // The first install has no controller yet. Treating that worker as an update
+  // shows «Hay una versión nueva» on a phone that has never opened Comando.
+  if (!navigator.serviceWorker.controller || !swReg?.waiting) return;
+  if (store.swWaiting) return;
+  store.swWaiting = true;
+  render();
+}
+
 async function registerSw() {
   if (!("serviceWorker" in navigator)) return;
   try {
@@ -905,10 +922,11 @@ async function registerSw() {
     };
     check();
     document.addEventListener("visibilitychange", () => { if (!document.hidden) check(); });
-    if (swReg.waiting) store.swWaiting = true;
+    noteSwWaiting();
     swReg.addEventListener("updatefound", () => {
-      swReg.installing?.addEventListener("statechange", () => {
-        if (swReg.waiting) { store.swWaiting = true; render(); }
+      const installing = swReg.installing;
+      installing?.addEventListener("statechange", () => {
+        if (installing.state === "installed") noteSwWaiting();
       });
     });
     navigator.serviceWorker.addEventListener("controllerchange", () => {
