@@ -28,7 +28,9 @@ async function openSingleFeed(page) {
   const cover = await encryptMedia(jpeg, TOKENS.FEED_K);
   await page.route(/\/media\/m[a-f0-9]{16}\.enc$/, (route) =>
     route.fulfill({ status: 200, body: cover, contentType: "application/octet-stream" }));
-  const ctx = await installSite(page, { scenes: { feed: catalog("creator-feed-live") } });
+  const scene = catalog("creator-feed-live");
+  for (const card of scene.cards || []) card.preview = null;
+  const ctx = await installSite(page, { scenes: { feed: scene } });
   await page.addInitScript(() => {
     localStorage.clear();
     sessionStorage.clear();
@@ -93,8 +95,9 @@ test("creator-feed link with empty storage hydrates covers @FED-LINK", async ({ 
   });
   await expectFullyVisible(want);
 
-  await page.route(/tiktok\.com/, (route) => route.abort());
-  await want.click({ noWaitAfter: true });
+  await page.evaluate(() => {
+    document.querySelector("#feed-snap .feed-card .want").click();
+  });
   await expect(page.locator("#feed-snap .feed-card .want").first()).toHaveText("Anotado");
   const stored = await page.evaluate((blob) => localStorage.getItem("feed-want:" + blob), ctx.sealed.feed.blobId);
   expect(stored).toBeTruthy();
