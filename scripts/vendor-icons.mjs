@@ -23,7 +23,7 @@ const NAMES = [
   "external-link", "circle-plus", "bell", "map-pin", "calendar", "star", "quote", "hand",
   "film", "list-ordered", "file-text", "hard-drive-upload", "eye", "heart", "message-circle",
   "repeat-2", "bookmark", "sliders-horizontal", "smartphone", "sun-moon", "log-out",
-  "key-round", "info", "circle-dot", "circle-x", "clapperboard",
+  "key-round", "info", "circle-dot", "circle-x", "clapperboard", "volume-2", "volume-x",
 ];
 
 const ALIASES = {

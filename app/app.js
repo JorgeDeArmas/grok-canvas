@@ -44,10 +44,18 @@ const store = {
   overlay: null,
   toast: null,
   scroll: {},
+  feedSound: readFeedSound(),
+  feedFilter: {},
 };
 
 const root = () => document.getElementById("app");
 let typing = false;
+let feedObserver = null;
+
+function readFeedSound() {
+  try { return globalThis.localStorage?.getItem("feed:sound") === "1"; }
+  catch { return false; }
+}
 let deferredPrompt = null;
 let swReg = null;
 let lastSwCheck = 0;
@@ -213,8 +221,16 @@ export function render() {
     ${overlayHtml()}
     ${store.toast ? toastHtml(store.toast.msg, store.toast.undo) : raw("")}
   `;
+  if (feedObserver) { feedObserver.disconnect(); feedObserver = null; }
   setHtml(el, chrome);
-  if (r.name === "feed" && store.feedKey) hydrateFeedMedia(el, store.feedKey);
+  if (r.name === "feed") {
+    watchFeedSnap(el);
+    if (store.feedKey) {
+      hydrateFeedMedia(el, store.feedKey).then(() => {
+        if (store.route?.name === "feed") syncFeedPlayback();
+      });
+    }
+  }
   if (r.name === "creadoras") hydrateMarkedMedia(el);
 }
 
@@ -368,6 +384,188 @@ function toast(msg, undoKey) {
   render();
 }
 
+function visibleFeedRatio(card, snap) {
+  const box = snap.getBoundingClientRect();
+  const r = card.getBoundingClientRect();
+  const vis = Math.min(r.bottom, box.bottom) - Math.max(r.top, box.top);
+  return r.height > 0 ? vis / r.height : 0;
+}
+
+function syncFeedPlayback() {
+  const snap = document.getElementById("feed-snap");
+  if (!snap) return;
+  for (const video of snap.querySelectorAll("video.feed-preview")) video.muted = !store.feedSound;
+  for (const card of snap.querySelectorAll(".feed-card")) {
+    const video = card.querySelector("video.feed-preview");
+    if (!video) continue;
+    if (visibleFeedRatio(card, snap) >= 0.6) {
+      const pending = video.play();
+      if (pending && typeof pending.catch === "function") pending.catch(() => {});
+    } else {
+      video.pause();
+    }
+  }
+}
+
+function paintSoundButtons() {
+  const on = !!store.feedSound;
+  const label = t(on ? "fed.soundOn" : "fed.soundOff");
+  for (const btn of document.querySelectorAll("button.feed-sound")) {
+    btn.setAttribute("aria-pressed", on ? "true" : "false");
+    btn.setAttribute("aria-label", label);
+  }
+}
+
+function toggleFeedSound() {
+  store.feedSound = !store.feedSound;
+  try { localStorage.setItem("feed:sound", store.feedSound ? "1" : "0"); } catch { /* private mode */ }
+  syncFeedPlayback();
+  paintSoundButtons();
+}
+
+function watchFeedSnap(rootEl) {
+  const snap = rootEl.querySelector("#feed-snap");
+  if (!snap || typeof IntersectionObserver !== "function") return;
+  feedObserver = new IntersectionObserver(() => syncFeedPlayback(), { root: snap, threshold: [0.6] });
+  for (const card of snap.querySelectorAll(".feed-card")) feedObserver.observe(card);
+}
+
+function feedFiltersSheet() {
+  const cards = store.feed?.cards || [];
+  const creators = [];
+  for (const c of cards) {
+    const name = c.creator || c.handle || "";
+    if (name && !creators.includes(name)) creators.push(name);
+  }
+  const cur = store.feedFilter?.creator || "";
+  return sheetChrome({
+    title: t("fed.filters"),
+    body: html`
+      <h3 class="section-h">${t("fed.creator")}</h3>
+      <button type="button" class="list-row" data-act="feed-creator" data-id="all" ${cur ? raw("") : raw('aria-current="true"')}>${t("fed.all")}</button>
+      ${creators.map((name) => html`<button type="button" class="list-row" data-act="feed-creator" data-id="${name}" ${cur === name ? raw('aria-current="true"') : raw("")}>${name}</button>`)}
+    `,
+    footer: Button({ kind: "secondary", size: "lg", full: true, label: t("fed.clear"), act: "feed-clear" }),
+  });
+}
+
+function openFeedNote(arg) {
+  const cards = store.feed?.cards || [];
+  const card = cards.find((c) => String(c.id) === arg) || cards[Number(arg)];
+  const who = String(card?.creator || card?.handle || "").trim();
+  store.noteContext = who ? (who.startsWith("@") ? who : "@" + who) : "";
+  store.overlay = { kind: "note" };
+  history.pushState({ sheet: "note" }, "", location.href);
+  render();
+}
+
+function resolveBoardRef(board, seen = new Set()) {
+  if (!board) return null;
+  if (typeof board === "string") {
+    if (seen.has("s:" + board)) return null;
+    seen.add("s:" + board);
+    const parsed = parseBoardRef(board);
+    if (parsed?.b && parsed.k && !parsed.blocked) return parsed;
+    const hit = (store.boards?.boards || []).find((b) => b.id === board);
+    return hit ? resolveBoardRef(hit.ref || hit.board, seen) : null;
+  }
+  if (typeof board !== "object" || board.blocked) return null;
+  if (board.b && board.k) return { b: board.b, k: board.k, f: board.f || "" };
+  if (board.ref) return resolveBoardRef(board.ref, seen);
+  const link = board.href || board.url || board.board;
+  if (typeof link === "string") return resolveBoardRef(link, seen);
+  if (board.id) return resolveBoardRef(String(board.id), seen);
+  return null;
+}
+
+async function openCreatorBoard(arg) {
+  const sep = arg.indexOf(":");
+  const sid = sep < 0 ? arg : arg.slice(0, sep);
+  const jobId = sep < 0 ? "" : arg.slice(sep + 1);
+  const session = creadoras.mergeSessions(store.model, store.live).find((s) => s.id === sid);
+  const job = (session?.jobs || []).find((j) => String(j.job_id || j.id || "") === jobId);
+  let ref = resolveBoardRef(job?.board);
+  if (!ref) {
+    const hit = (store.boards?.boards || []).find((b) =>
+      String(b.id) === jobId || String(b.product || "") === jobId || String(b.job || "") === jobId);
+    ref = resolveBoardRef(hit?.ref || hit?.board);
+  }
+  if (!ref?.b || !ref.k) { toast(t("err.boardOpen.title")); return; }
+  store.boardContext = { job: jobId, name: job?.name || "" };
+  setRoute({ name: "board", id: "c:" + sid });
+  await loadBoard(ref, "viewer");
+}
+
+function openGrok(id) {
+  const g = (store.model?.grok || []).find((x) => x.id === id);
+  const rows = Array.isArray(g?.detail) ? g.detail : [];
+  store.overlay = {
+    kind: "sheet",
+    html: sheetChrome({
+      title: g?.title || "",
+      body: html`${rows.map((d) => html`<div class="list-row"><div class="list-body"><div class="list-title">${d?.[0] || ""}</div><div class="list-meta">${d?.[1] || ""}</div></div></div>`)}`,
+    }),
+  };
+  render();
+}
+
+function openAskBoard(id) {
+  const b = (store.boards?.boards || []).find((x) => x.id === id);
+  store.noteContext = b?.title || "";
+  store.noteText = t("note.askGrok");
+  store.overlay = { kind: "note" };
+  history.pushState({ sheet: "note" }, "", location.href);
+  render();
+}
+
+function toggleRefVideo(el) {
+  const video = el?.querySelector?.("video");
+  if (!video) return;
+  if (video.paused) {
+    video.hidden = false;
+    const pending = video.play();
+    if (pending && typeof pending.catch === "function") pending.catch(() => {});
+  } else {
+    video.pause();
+  }
+}
+
+async function sendBoardChoice(name, arg) {
+  const choice = name === "go" ? "go" : "changes";
+  const ck = choice + ":" + arg;
+  await enqueue({
+    channel: "hub", kind: "approve",
+    payload: { kind: "approve", blockId: arg, choice },
+    coalesceKey: ck, grace: true,
+  });
+  toast(t(choice === "go" ? "toast.go" : "toast.changes"), ck);
+}
+
+function resumeUpload(key) {
+  if (!store.online) { toast(t("toast.needOnline")); return; }
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = "video/*";
+  input.addEventListener("change", () => {
+    const file = input.files && input.files[0];
+    if (file) doUpload({ getAttribute: () => key, dataset: { file: key } }, file);
+  });
+  input.click();
+}
+
+function openPdp(id) {
+  const products = [...(store.board?.products || []), ...(store.model?.products || [])];
+  const p = products.find((x) => String(x.id) === id);
+  store.overlay = {
+    kind: "sheet",
+    html: sheetChrome({
+      title: p?.name || id,
+      body: html`<p>${p?.now || p?.script || ""}</p>`,
+    }),
+  };
+  render();
+}
+
 async function handleAct(act, el, ev) {
   if (!act) return;
   const [name, ...rest] = act.split(":");
@@ -432,7 +630,10 @@ async function handleAct(act, el, ev) {
   if (name === "copy-script") { await copyText(store.board?.script || ""); toast(t("toast.copied.script")); return; }
   if (name === "copy-install-link") { await copyText(pendingInstallLink); toast(t("toast.copied.link")); return; }
   if (name === "install-how") { store.overlay = { kind: "install" }; history.pushState({ sheet: "install" }, "", location.href); render(); return; }
-  if (name === "install-native" && deferredPrompt) { deferredPrompt.prompt(); deferredPrompt = null; render(); return; }
+  if (name === "install-native") {
+    if (deferredPrompt) { deferredPrompt.prompt(); deferredPrompt = null; render(); }
+    return;
+  }
   if (name === "banner-dismiss") { store.installDismissed = true; await saveSettings({ installDismissedAt: Date.now() }); render(); return; }
   if (name === "sw-update") { skipWaiting(); return; }
   if (name === "force-update") { await refreshRoot(); if (swReg) swReg.update(); toast(t("status.updating")); return; }
@@ -442,6 +643,52 @@ async function handleAct(act, el, ev) {
   if (name === "retry") { boot(); return; }
   if (name === "toggle-past") { store.pastOpen = !store.pastOpen; render(); return; }
   if (name === "upload" && ev?.target?.files?.[0]) { await doUpload(el, ev.target.files[0]); return; }
+  if (name === "note-feed") { openFeedNote(arg); return; }
+  if (name === "note-clear-ctx") { store.noteContext = ""; render(); return; }
+  if (name === "creator-board") { await openCreatorBoard(arg); return; }
+  if (name === "feed-sound") { toggleFeedSound(); return; }
+  if (name === "feed-filters") { store.overlay = { kind: "sheet", html: feedFiltersSheet() }; render(); return; }
+  if (name === "feed-creator") {
+    const id = el?.dataset?.id || "";
+    store.feedFilter = { ...(store.feedFilter || {}), creator: !id || id === "all" ? "" : id };
+    store.overlay = { kind: "sheet", html: feedFiltersSheet() };
+    render();
+    return;
+  }
+  if (name === "feed-clear") { store.feedFilter = {}; store.overlay = { kind: "sheet", html: feedFiltersSheet() }; render(); return; }
+  if (name === "retry-creadoras") { await refreshLive(); return; }
+  if (name === "copy-search") {
+    const ok = await copyText(store.copySearch || "");
+    toast(ok ? t("toast.copied.search") : t("toast.copyFailed"));
+    return;
+  }
+  if (name === "grok") { openGrok(arg); return; }
+  if (name === "grok-more") { store.grokOpen = true; render(); return; }
+  if (name === "ask-board") { openAskBoard(arg); return; }
+  if (name === "play-ref") { toggleRefVideo(el); return; }
+  if (name === "jump-scene") {
+    document.querySelector(`[data-scene="${arg}"]`)?.scrollIntoView({ block: "nearest" });
+    return;
+  }
+  if (name === "script-expand") {
+    const pre = el?.closest(".card")?.querySelector(".script-block");
+    if (pre) pre.style.maxHeight = pre.style.maxHeight === "none" ? "9.5em" : "none";
+    return;
+  }
+  if (name === "go" || name === "changes") { await sendBoardChoice(name, arg); return; }
+  if (name === "frame") {
+    if (el) {
+      el.classList.toggle("frame-on");
+      el.setAttribute("aria-pressed", el.classList.contains("frame-on") ? "true" : "false");
+    }
+    return;
+  }
+  if (name === "resume") { resumeUpload(arg); return; }
+  if (name === "open-pdp") { openPdp(arg); return; }
+  if (name === "noop" || name === "confirm" || name === "seg") {
+    if (name === "confirm") closeOverlay();
+    return;
+  }
 }
 
 function productListSheet() {
@@ -578,7 +825,7 @@ function openLibBoard(id) {
   loadBoard(b.ref);
 }
 
-async function loadBoard(ref) {
+async function loadBoard(ref, role) {
   try {
     const blob = await fetchScene(ref.b);
     const scene = await decryptScene(blob, ref.k);
@@ -602,7 +849,7 @@ async function loadBoard(ref) {
       return;
     }
     store.board = adapted.board;
-    store.boardRole = store.model?.ownerToken ? "owner" : "viewer";
+    store.boardRole = role || (store.model?.ownerToken ? "owner" : "viewer");
     render();
   } catch {
     store.board = null; render();

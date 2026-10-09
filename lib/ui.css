@@ -467,6 +467,9 @@ button { appearance: none; border: 0; background: none; cursor: pointer; }
   scroll-snap-align: start; scroll-snap-stop: always;
   background: #111; color: #fff; overflow: hidden;
 }
+.feed-sound .sound-on { display: none; }
+.feed-sound[aria-pressed="true"] .sound-off { display: none; }
+.feed-sound[aria-pressed="true"] .sound-on { display: flex; }
 .feed-media, .feed-cover, .feed-preview {
   position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; background: #111;
 }
@@ -506,7 +509,7 @@ button { appearance: none; border: 0; background: none; cursor: pointer; }
 }
 .feed-pill {
   display: flex; align-items: center; gap: 10px; max-width: 100%; min-width: 0;
-  padding: 8px 12px 8px 8px; border-radius: 16px;
+  padding: 8px 12px 8px 8px; border-radius: 16px; text-decoration: none;
   background: rgba(255, 255, 255, .16); color: #fff; text-align: left;
 }
 .feed-pill img { width: 40px; height: 40px; flex: none; border-radius: 10px; object-fit: cover; background: #222; }
@@ -530,6 +533,7 @@ button { appearance: none; border: 0; background: none; cursor: pointer; }
 .filebtn input[type="file"] { position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%; cursor: pointer; }
 
 .frame-9x16 { position: relative; display: block; width: 100%; aspect-ratio: 9/16; border-radius: 12px; overflow: hidden; background: var(--surface-pressed); }
+.frame-on .frame-9x16 { outline: 2px solid var(--link); outline-offset: 2px; }
 .safe-zone {
   position: absolute; left: 0; right: 0; top: 14.84375%; height: 70.3125%;
   border: 1px dashed color-mix(in srgb, #fff 55%, transparent); pointer-events: none;
