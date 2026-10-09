@@ -214,7 +214,8 @@ test("live scene shapes: feed, boards, grabar board @LIVE", async ({ page }) => 
   await page.locator('[data-act="back"]').click();
   await page.locator('[data-tab="dashboard"]').click();
   await page.locator('[data-act="go-feed"]').click();
-  await expect(page.locator("#app")).toContainText("Feed v3 91");
+  await expect(page.locator("#app")).not.toContainText("Feed v3");
+  await expect(page.locator(".feed-score")).toHaveCount(0);
   await expect(page.locator("#app")).not.toContainText("[object Object]");
   await expect(page.locator("#app")).toContainText("Waffle de cortina");
   await expect(page.locator("#app")).toContainText("Lo quiero");

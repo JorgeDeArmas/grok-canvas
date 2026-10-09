@@ -1,7 +1,7 @@
 import { html, raw, setHtml } from "../lib/html.js";
 import { t } from "../lib/copy.js";
 import { icon } from "../lib/icons.js";
-import { okHost, parseHash, hashIsKeys, copyText, share, classifyLink, fetchScene, decryptScene, parseBoardRef, hydrateFeedMedia } from "../lib/core.js";
+import { okHost, parseHash, hashIsKeys, copyText, share, classifyLink, fetchScene, decryptScene, parseBoardRef, hydrateFeedMedia, hydrateEncNodes } from "../lib/core.js";
 import { relativePast, clockTimeEt, expiryLabel, todayEt } from "../lib/dates.js";
 import {
   importFromHash, importFromPastedText, decryptSceneFor, getKey, allKeys,
@@ -215,6 +215,29 @@ export function render() {
   `;
   setHtml(el, chrome);
   if (r.name === "feed" && store.feedKey) hydrateFeedMedia(el, store.feedKey);
+  if (r.name === "creadoras") hydrateMarkedMedia(el);
+}
+
+async function hydrateMarkedMedia(el) {
+  const nodes = [...el.querySelectorAll("[data-enc][data-key-role]")];
+  const byRole = new Map();
+  for (const node of nodes) {
+    const role = node.getAttribute("data-key-role") || "";
+    if (!byRole.has(role)) byRole.set(role, []);
+    byRole.get(role).push(node);
+  }
+  for (const [role, list] of byRole) {
+    let key = role === "boards" ? store.boardsKey : null;
+    if (!key && role === "root") {
+      const row = await getKey("root").catch(() => null);
+      key = row && row.key;
+    }
+    if (!key) {
+      const ref = store.model && store.model.keyring && store.model.keyring[role];
+      key = ref && ref.k;
+    }
+    if (key) await hydrateEncNodes(list, key);
+  }
 }
 
 function screenBody(r) {
@@ -666,7 +689,7 @@ function confirmForget() {
 
 async function doForget() {
   await forgetPhone();
-  store.model = null; store.feed = null; store.boards = null; store.keys = [];
+  store.model = null; store.feed = null; store.boards = null; store.boardsKey = null; store.keys = [];
   store.overlay = null;
   setRoute({ name: "bienvenida" }, { replace: true });
 }
@@ -822,6 +845,7 @@ async function loadBoards() {
     const got = await loadSceneRef("boards");
     if (!got) return;
     store.boards = fromBoards(got.scene);
+    store.boardsKey = got.key;
     store.boardsLane = store.boardsLane || loadLane();
     await classifyBoardViewers();
   } catch { store.feedError = true; }
@@ -875,7 +899,7 @@ async function consumeHash() {
   } else {
     store.single = true;
     if (r.type === "filming") { store.model = fromFilming(r.scene); store.route = { name: "grabar" }; }
-    else if (r.type === "boards") { store.boards = fromBoards(r.scene); store.route = { name: "boards" }; }
+    else if (r.type === "boards") { store.boards = fromBoards(r.scene); store.boardsKey = r.keyText; store.route = { name: "boards" }; }
     else if (r.type === "creator-feed") {
       store.feed = normalizeFeed(r.scene);
       store.feedKey = r.keyText;
