@@ -438,7 +438,7 @@ button { appearance: none; border: 0; background: none; cursor: pointer; }
 .feed-root { background: #000; color: #fff; min-height: 100dvh; }
 .feed-root .muted { color: rgba(255, 255, 255, .72); }
 .feed-top {
-  position: sticky; top: 0; z-index: 2; flex: none;
+  position: sticky; top: 0; z-index: 2; flex: none; min-width: 0; max-width: 100%;
   display: flex; align-items: center; gap: 8px;
   padding: calc(8px + var(--safe-t)) calc(8px + var(--safe-r)) 8px calc(8px + var(--safe-l));
   background: #000;
@@ -454,8 +454,8 @@ button { appearance: none; border: 0; background: none; cursor: pointer; }
   padding: 0; overflow: hidden;
 }
 #app.feed-open .feed-root {
-  flex: 1 1 0; min-height: 0; height: 100%;
-  display: grid; grid-template-rows: auto minmax(0, 1fr);
+  flex: 1 1 0; min-width: 0; width: 100%; min-height: 0; height: 100%;
+  display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr);
 }
 #feed-snap {
   min-width: 0; min-height: 0; height: 100%;
