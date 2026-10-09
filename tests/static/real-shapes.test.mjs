@@ -31,7 +31,8 @@ test("feed score object is not stringified", () => {
     model: {},
   }));
   assert.doesNotMatch(html, /\[object Object\]/);
-  assert.match(html, /Feed v3 91/);
+  assert.doesNotMatch(html, /Feed v3/);
+  assert.doesNotMatch(html, /feed-score/);
   assert.match(html, /Waffle de cortina/);
   assert.match(html, /\$24\.00/);
   assert.match(html, /Comisión 12%/);
@@ -170,6 +171,44 @@ test("creadoras uses the manager words and a product thumb", () => {
   assert.doesNotMatch(html, /Visto/);
   assert.match(html, /data:image\/jpeg/);
   assert.match(html, /Waffle de cortina/);
+});
+
+test("creadoras thumb falls back to the listing or the board", () => {
+  const full = "Crema de manos sintetica para el set de prueba de laboratorio";
+  assert.ok(full.length > 60, String(full.length));
+  const hub = hubV3Live();
+  hub.creators[0].jobs = [
+    { job_id: "job-list", name: full, status: "opened" },
+    { job_id: "job-board", name: "Pack de grabación", status: "opened" },
+    {
+      job_id: "job-enc", name: "Foto cifrada", status: "sent",
+      thumb: { enc: true, src: "media/m0123456789abcdef.enc", mime: "image/jpeg" },
+    },
+    { job_id: "job-none", name: "Sin foto disponible", status: "sent" },
+  ];
+  hub.sections.find((s) => s.id === "productos").items = [
+    { id: "cream", title: full, thumb: "pb", chip: { text: "Por grabar" } },
+  ];
+  const model = adaptRoot(hub);
+  assert.equal(model.creators[0].jobs[0].name.length, 48);
+  assert.ok(model.products[0].name.length > 48);
+  const html = markup(renderCreadoras({
+    model,
+    boards: fromBoards(boardsV1Live()),
+    live: { sessions: [] },
+    now: new Date("2026-10-08T13:00:00.000Z"),
+  }));
+  const before = (name) => {
+    const at = html.indexOf(name);
+    assert.ok(at >= 0, name);
+    return html.slice(html.lastIndexOf('<div class="list-row"', at), at);
+  };
+  assert.match(before(model.creators[0].jobs[0].name), /data:image\/jpeg/);
+  assert.match(before("Pack de grabación"), /data:image\/jpeg/);
+  assert.match(before("Foto cifrada"), /data-enc="https:\/\/[^"]+\/media\/m0123456789abcdef\.enc"/);
+  assert.match(before("Foto cifrada"), /data-key-role="root"/);
+  assert.match(before("Sin foto disponible"), /class="thumb ph"/);
+  assert.doesNotMatch(before("Sin foto disponible"), /<img/);
 });
 
 test("service worker precaches the screen modules", () => {
