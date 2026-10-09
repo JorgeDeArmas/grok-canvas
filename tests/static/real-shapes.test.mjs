@@ -39,12 +39,30 @@ test("feed score object is not stringified", () => {
   assert.match(html, /Abrir en TikTok/);
   assert.match(html, /class="want"/);
   assert.match(html, /Lo quiero/);
+  assert.match(html, /<a class="feed-pill" href="https:\/\/shop\.tiktok\.com\/view\/product\/1" target="_blank" rel="noopener noreferrer">/);
+  assert.doesNotMatch(html, /product-pill/);
+  assert.match(html, /data-act="feed-sound"/);
+  assert.match(html, /data-act="note-feed:c-live-1"/);
   assert.doesNotMatch(html, /data-cover=/);
   assert.match(html, /data-enc="https:\/\/[^"]+\/media\/m0123456789abcdef\.enc"/);
   assert.match(html, /<video class="feed-preview"[^>]*data-enc="https:\/\/[^"]+\/media\/mabcdef0123456789\.enc"/);
   assert.match(html, /1\.2 M/);
   assert.match(html, /Producto sin identificar/);
   assert.match(html, />—</);
+});
+
+test("product pill falls back to the shop PDP when href is missing", () => {
+  const html = markup(renderFeed({
+    feed: {
+      avatars: [],
+      cards: [{ id: "c-id", creator: "@demo.shop", product: { id: "99", title: "Solo id" } }],
+    },
+    feedLane: "all",
+    feedFilter: {},
+    model: {},
+  }));
+  assert.match(html, /href="https:\/\/shop\.tiktok\.com\/us\/pdp\/99"/);
+  assert.doesNotMatch(html, /data-act="product-pill/);
 });
 
 test("hub v3 keeps boards and filming refs in memory", () => {
